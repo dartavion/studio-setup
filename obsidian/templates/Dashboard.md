@@ -5,6 +5,9 @@ cssclasses:
 
 # 🏠 Dashboard
 
+> [!note] Quick Links
+> [[03-Projects/|Projects]] · [[01-Periodics/|Periodics]] · [[02-Notes/|Notes]] · [[04-Resources/|Resources]] · [[09-Review/|Review]]
+
 ## 📊 KPIs — Last 14 Days
 ```dataviewjs
 const raw = await app.vault.adapter.read("reports/kpi-snapshot.json");
@@ -79,16 +82,15 @@ SORT file.mtime DESC
 LIMIT 8
 ```
 
-## 📁 Project Status
+## 📁 Active Projects
 ```dataview
 TABLE WITHOUT ID
-  file.folder AS "Area",
-  length(rows) AS "Notes",
-  max(rows.file.mtime) AS "Last activity"
-FROM ""
-WHERE file.folder != ""
-GROUP BY file.folder
-SORT max(rows.file.mtime) DESC
+  file.link AS "Project",
+  status AS "Status",
+  started AS "Started"
+FROM "03-Projects"
+WHERE status = "active" OR status = "blocked"
+SORT file.mtime DESC
 ```
 
 ## 📅 Daily Notes

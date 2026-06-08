@@ -1,0 +1,63 @@
+/* Compact UI — tighter nav, collapsible panels, polished scrollbars */
+
+/* ── File explorer ──────────────────────────────────────────────────────────── */
+
+.nav-file-title,
+.nav-folder-title {
+  font-size: 0.85em;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.nav-folder-title-content,
+.nav-file-title-content {
+  padding-left: 4px;
+}
+
+/* ── Tab bar ────────────────────────────────────────────────────────────────── */
+
+.workspace-tab-header {
+  padding: 0 6px;
+  height: 32px;
+}
+
+.workspace-tab-header-inner-title {
+  font-size: 0.8em;
+}
+
+/* ── Right sidebar — hide panel headers until hover ─────────────────────────── */
+
+.workspace-split.mod-right-split .workspace-leaf-resize-handle ~ .workspace-leaf .view-header {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.workspace-split.mod-right-split .workspace-leaf-resize-handle ~ .workspace-leaf:hover .view-header {
+  opacity: 1;
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-bg, rgba(128,128,128,0.3));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-bg-hover, rgba(128,128,128,0.5));
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────────────── */
+
+.view-actions .clickable-icon {
+  padding: 4px;
+}
