@@ -1,2 +1,5 @@
 .DS_Store
 *.local
+
+# Root-level .obsidian is created when Obsidian opens this folder directly — not the vault
+/.obsidian/

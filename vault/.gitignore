@@ -1,0 +1,10 @@
+# Plugin binaries — install via Obsidian's Community Plugins UI
+.obsidian/plugins/**/main.js
+.obsidian/plugins/**/styles.css
+
+# Workspace state
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+
+# Cache
+.obsidian/cache

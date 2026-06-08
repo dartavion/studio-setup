@@ -1,0 +1,7 @@
+{
+  "cssTheme": "Minimal",
+  "enabledCssSnippets": [
+    "minimal-polish",
+    "ui-compact"
+  ]
+}

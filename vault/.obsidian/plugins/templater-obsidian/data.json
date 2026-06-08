@@ -1,0 +1,11 @@
+{
+  "template_folder": "00-Meta/Templates",
+  "auto_jump_to_cursor": true,
+  "trigger_on_file_creation": true,
+  "enable_folder_templates": true,
+  "folder_templates": [
+    { "folder": "01-Periodics", "path": "00-Meta/Templates/Daily Note.md" },
+    { "folder": "03-Projects",  "path": "00-Meta/Templates/Project.md" },
+    { "folder": "04-Resources", "path": "00-Meta/Templates/Resource.md" }
+  ]
+}
