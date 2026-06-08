@@ -1,0 +1,30 @@
+{
+  "updated_at": "2026-06-08T00:00:00Z",
+  "window": "2026-05-25 – 2026-06-08",
+  "posthog": {
+    "active_users": 1240,
+    "active_users_delta": 12,
+    "new_signups": 187,
+    "new_signups_delta": -3,
+    "sessions": 4821,
+    "sessions_delta": 8,
+    "top_event": "checkout_started"
+  },
+  "grafana": {
+    "api_p95_ms": 142,
+    "api_p95_delta": -11,
+    "error_rate_pct": 0.4,
+    "error_rate_delta": -0.1,
+    "uptime_pct": 99.97,
+    "deploys": 8
+  },
+  "bigquery": {
+    "conversions": 312,
+    "conversions_delta": 5,
+    "conversion_rate_pct": 3.8,
+    "conversion_rate_delta": 0.3,
+    "revenue_usd": 24800,
+    "revenue_delta": 7,
+    "pipeline_runs": 56
+  }
+}

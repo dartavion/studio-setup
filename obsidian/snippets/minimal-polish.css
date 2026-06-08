@@ -1,0 +1,102 @@
+/* Pairs with the "Minimal" theme — soft cards, calmer headers, tidy tables */
+
+.markdown-preview-view,
+.markdown-source-view {
+  line-height: 1.65;
+}
+
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3 {
+  letter-spacing: -0.01em;
+}
+
+.callout {
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.internal-embed {
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  padding: 0.5em;
+}
+
+.dataview.table-view-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.dataview.table-view-table th {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72em;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.dataview.table-view-table td,
+.dataview.table-view-table th {
+  padding: 0.5em 0.75em;
+}
+
+/* ── KPI Dashboard ─────────────────────────────────────────────────────────── */
+
+.kpi-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0.5rem 0 1.5rem;
+}
+
+.kpi-meta {
+  font-size: 0.72em;
+  opacity: 0.5;
+  letter-spacing: 0.02em;
+}
+
+.kpi-group-title {
+  font-size: 0.72em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.5;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi-card {
+  background: var(--background-secondary);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+}
+
+.kpi-label {
+  font-size: 0.72em;
+  opacity: 0.55;
+  letter-spacing: 0.02em;
+}
+
+.kpi-value {
+  font-size: 1.4em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.kpi-delta {
+  font-size: 0.72em;
+  margin-top: 0.1rem;
+}
+
+.kpi-up   { color: #34c78a; }
+.kpi-down { color: #f87171; }
