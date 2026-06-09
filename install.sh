@@ -107,13 +107,25 @@ case "${1:-}" in
     ;;
   "")
     echo "==> studio-setup install"
-    # ── WezTerm ────────────────────────────────────────────────────────────
-    # TODO: symlink wezterm config
 
-    # ── Dotfiles ───────────────────────────────────────────────────────────
+    # ── WezTerm ──────────────────────────────────────────────────────────
+    echo "  wezterm"
+    mkdir -p ~/.config/wezterm/workspaces
+    for f in wezterm.lua utils.lua; do
+      ln -sf "$REPO_DIR/wezterm/$f" ~/.config/wezterm/"$f"
+      echo "    ~> ~/.config/wezterm/$f"
+    done
+    for f in "$REPO_DIR/wezterm/workspaces/"*.lua; do
+      name="$(basename "$f")"
+      [[ "$name" == "workspace.template.lua" ]] && continue
+      target=~/.config/wezterm/workspaces/"$name"
+      [ ! -e "$target" ] && ln -sf "$f" "$target" && echo "    ~> ~/.config/wezterm/workspaces/$name"
+    done
+
+    # ── Dotfiles ─────────────────────────────────────────────────────────
     # TODO: symlink dotfiles
 
-    # ── Claude Code hooks ──────────────────────────────────────────────────
+    # ── Claude Code hooks ────────────────────────────────────────────────
     # TODO: symlink hooks into ~/.claude/hooks/
 
     echo "==> done"
