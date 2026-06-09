@@ -23,6 +23,9 @@ PLUGIN_IDS=(
   "quickadd:chhoumann/quickadd"
   "periodic-notes:liamcain/obsidian-periodic-notes"
   "templater-obsidian:SilentVoid13/Templater"
+  "obsidian-excalidraw-plugin:zsviczian/obsidian-excalidraw-plugin"
+  "smart-connections:brianpetro/obsidian-smart-connections"
+  "obsidian-icon-folder:FlorianWoelki/obsidian-iconize"
 )
 
 install_plugins() {

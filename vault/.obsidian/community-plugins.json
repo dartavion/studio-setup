@@ -2,7 +2,10 @@
   "calendar",
   "dataview",
   "homepage",
+  "obsidian-excalidraw-plugin",
+  "obsidian-icon-folder",
   "obsidian-kanban",
   "obsidian-style-settings",
-  "quickadd"
+  "quickadd",
+  "smart-connections"
 ]
