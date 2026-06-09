@@ -17,37 +17,16 @@ Dev environment kit for designers, engineers, and AI builders.
 
 **Not sure which to choose?**
 
-- You live in Figma, Notion, or slides → **vault-only**. You get a structured Obsidian workspace with a KPI dashboard, project tracking, and daily notes. Nothing else touches your machine.
-- You write code every day → **full setup**. You get everything above plus a configured terminal, editor, and AI tooling that work together out of the box.
-- You're somewhere in between (e.g. a web engineer who doesn't use a terminal much yet) → start with vault-only. You can run `./install.sh --full` later and it picks up where vault-only left off without overwriting anything.
-
----
-
-### Designers and product folks — just Obsidian
-
-One prerequisite: [Obsidian](https://obsidian.md). That's it — no `gh` CLI, no authentication needed.
-
-```bash
-# HTTPS (no SSH keys needed)
-git clone https://github.com/dartavion/studio-setup.git
-cd studio-setup
-./install.sh --vault-only        # macOS / Linux / WSL
-.\install.ps1 -VaultOnly         # Windows PowerShell
-```
-
-The script downloads all plugins directly from GitHub releases (no auth required) at pinned, verified versions. Then:
-
-1. Open Obsidian → **Add Vault** → select the `vault/` folder
-2. Settings → Community plugins → click **Trust** for each plugin
-
-The Dashboard opens automatically. KPI cards, tasks, and project tables render immediately.
+- You write code every day → **full setup**. Terminal, editor, AI tooling, and the Obsidian vault — all wired together out of the box.
+- You live in Figma, Notion, or slides → **vault-only**. Just the Obsidian workspace: KPI dashboard, project tracking, daily notes. Nothing else touches your machine.
+- Somewhere in between → start with vault-only. Run `./install.sh --full` later and it picks up without overwriting anything.
 
 ---
 
 ### Engineers and AI builders — full setup
 
 ```bash
-git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended for devs)
+git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended)
 # or: git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
 ./install.sh --full              # macOS
@@ -60,6 +39,27 @@ Installs and wires everything: WezTerm, Obsidian, shell config, Neovim, Claude C
 **One manual step after full install:** open Obsidian → Add Vault → select `vault/` → Community plugins → click **Trust**. This is an Obsidian security requirement that can't be scripted.
 
 See the [Windows](#windows) section for WSL vs PowerShell details.
+
+---
+
+### Designers and product folks — just Obsidian
+
+One prerequisite: [Obsidian](https://obsidian.md). No `gh` CLI, no SSH keys, no terminal experience needed.
+
+```bash
+# HTTPS — no SSH keys required
+git clone https://github.com/dartavion/studio-setup.git
+cd studio-setup
+./install.sh --vault-only        # macOS / Linux / WSL
+.\install.ps1 -VaultOnly         # Windows PowerShell
+```
+
+The script downloads all plugins directly from GitHub releases at pinned, verified versions. Then:
+
+1. Open Obsidian → **Add Vault** → select the `vault/` folder
+2. Settings → Community plugins → click **Trust** for each plugin
+
+The Dashboard opens automatically. KPI cards, tasks, and project tables render immediately.
 
 ---
 
