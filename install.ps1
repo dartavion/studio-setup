@@ -377,25 +377,44 @@ function Invoke-BaseInstall {
     Write-Host "==> done"
 }
 
+# ── persona routing ───────────────────────────────────────────────────────────
+
+function Test-GhAvailable {
+    if (-not (Test-Command gh)) { return $false }
+    gh auth status 2>$null | Out-Null
+    return $LASTEXITCODE -eq 0
+}
+
+function Invoke-AskPersona {
+    Write-Host ""
+    Write-Host "  gh CLI not set up. Quick question:"
+    Write-Host ""
+    Write-Host "  [1] Developer          — need the full dev environment"
+    Write-Host "  [2] Designer / product — just want the Obsidian vault"
+    Write-Host ""
+    $choice = Read-Host "  Your choice (1/2)"
+    Write-Host ""
+
+    if ($choice -eq "1") {
+        Write-Host "  Developer path — gh CLI needed for the full setup."
+        Write-Host ""
+        Write-Host "  Install:      winget install GitHub.cli"
+        Write-Host "  Authenticate: gh auth login"
+        Write-Host ""
+        Write-Host "  Then re-run: .\install.ps1 -Full"
+        exit 0
+    } else {
+        Write-Host "  Designer/product path — downloading plugins directly (no gh needed)."
+        Write-Host ""
+    }
+}
+
 # ── vault-only install (designers / product folks) ───────────────────────────
 
 function Invoke-VaultOnly {
     Write-Host "==> studio-setup — Obsidian vault setup"
-    Write-Host ""
 
-    if (-not (Test-Command gh)) {
-        Write-Host "  gh CLI is required to download plugins."
-        Write-Host "  Install it from https://cli.github.com, then run: gh auth login"
-        Write-Host "  Re-run this script once authenticated."
-        exit 1
-    }
-
-    $ghAuth = gh auth status 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  gh is not authenticated. Run: gh auth login"
-        Write-Host "  Then re-run: .\install.ps1 -VaultOnly"
-        exit 1
-    }
+    if (-not (Test-GhAvailable)) { Invoke-AskPersona }
 
     Install-Plugins $BaseVault
 

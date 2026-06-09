@@ -1,10 +1,6 @@
 # session-end hook — token usage and cost tracking
 # Called with "stop" (per-turn) or "end" (session close)
-#
-# !! MODEL-SPECIFIC PRICING — update these constants if you switch models !!
-# Current: claude-sonnet-4-6 API list rates ($/MTok)
-#   input $3.00 | output $15.00 | cache_read $0.30 | cache_write_5m $3.75 | cache_write_1h $6.00
-# Rates: https://www.anthropic.com/pricing
+# Rates are read from pricing.json in the same directory — edit that file to switch models.
 
 param([string]$Mode = "end")
 
@@ -34,8 +30,15 @@ function Format-Num([long]$n) {
     return "$n$r"
 }
 
+$pricing = Get-Content (Join-Path $PSScriptRoot "pricing.json") | ConvertFrom-Json
+$rIn  = $pricing.rates_usd_per_mtok.input
+$rOut = $pricing.rates_usd_per_mtok.output
+$rCr  = $pricing.rates_usd_per_mtok.cache_read
+$rCw5 = $pricing.rates_usd_per_mtok.cache_write_5m
+$rCw1 = $pricing.rates_usd_per_mtok.cache_write_1h
+
 function Calc-Cost([long]$inp, [long]$out, [long]$cr, [long]$cw5, [long]$cw1) {
-    return ($inp * 3.00 + $out * 15.00 + $cr * 0.30 + $cw5 * 3.75 + $cw1 * 6.00) / 1000000
+    return ($inp * $rIn + $out * $rOut + $cr * $rCr + $cw5 * $rCw5 + $cw1 * $rCw1) / 1000000
 }
 
 # Reads transcript from $fromLine onward (1-based), parsing only new entries.

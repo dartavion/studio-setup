@@ -1,12 +1,9 @@
 #!/bin/bash
 # Called with "stop" (per-turn) or "end" (session close)
-#
-# !! MODEL-SPECIFIC PRICING — update these constants if you switch models !!
-# Current: claude-sonnet-4-6 API list rates ($/MTok)
-#   input $3.00 | output $15.00 | cache_read $0.30 | cache_write_5m $3.75 | cache_write_1h $6.00
-# Rates: https://www.anthropic.com/pricing
+# Rates are read from pricing.json in the same directory — edit that file to switch models.
 
 MODE="${1:-end}"
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
@@ -25,9 +22,16 @@ fmt_usd() {
   awk -v v="$1" 'BEGIN { printf "$%.4f", v }'
 }
 
+read -r R_IN R_OUT R_CR R_CW5 R_CW1 < <(python3 -c "
+import json
+r = json.load(open('$HOOK_DIR/pricing.json'))['rates_usd_per_mtok']
+print(r['input'], r['output'], r['cache_read'], r['cache_write_5m'], r['cache_write_1h'])
+")
+
 calc_cost() {
-  awk -v tok_in="$1" -v tok_out="$2" -v cr="$3" -v cw5="$4" -v cw1="$5" '
-    BEGIN { printf "%.4f", (tok_in*3.00 + tok_out*15.00 + cr*0.30 + cw5*3.75 + cw1*6.00) / 1000000 }
+  awk -v tok_in="$1" -v tok_out="$2" -v cr="$3" -v cw5="$4" -v cw1="$5" \
+      -v r_in="$R_IN" -v r_out="$R_OUT" -v r_cr="$R_CR" -v r_cw5="$R_CW5" -v r_cw1="$R_CW1" '
+    BEGIN { printf "%.4f", (tok_in*r_in + tok_out*r_out + cr*r_cr + cw5*r_cw5 + cw1*r_cw1) / 1000000 }
   '
 }
 

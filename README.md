@@ -78,13 +78,14 @@ Base config is symlinked from `wezterm/wezterm.lua` to `~/.config/wezterm/` by `
 
 ### Adding a project workspace
 
-Copy the template and fill in your project path:
+`wezterm/workspaces/example.lua` is a complete, working workspace you can copy directly. It opens nvim on the left and a shell on the right:
 
 ```bash
-cp wezterm/workspaces/workspace.template.lua wezterm/workspaces/my_project.lua
+cp wezterm/workspaces/example.lua wezterm/workspaces/my_project.lua
+# edit WORKSPACE and ROOT at the top of the file
 ```
 
-Then in `wezterm.lua`, wire it up:
+Then wire it in `wezterm.lua`:
 
 ```lua
 local my_project = require 'workspaces.my_project'
@@ -138,19 +139,39 @@ vault/
 
 ### KPI dashboard
 
-The dashboard reads `reports/kpi-snapshot.json`. Replace the placeholder with output from your data pipeline:
+The dashboard reads `reports/kpi-snapshot.json` — a local file your data pipeline writes. Delta fields are percentage change vs. the previous window; negative deltas on `api_p95` and `error_rate` show as green (improvement).
 
-```json
-{
-  "updated_at": "YYYY-MM-DDTHH:MM:SSZ",
-  "window": "YYYY-MM-DD – YYYY-MM-DD",
-  "posthog": { "active_users": 0, "active_users_delta": 0, "new_signups": 0, "new_signups_delta": 0, "sessions": 0, "sessions_delta": 0, "top_event": "" },
-  "grafana":  { "api_p95_ms": 0, "api_p95_delta": 0, "error_rate_pct": 0, "error_rate_delta": 0, "uptime_pct": 0, "deploys": 0 },
-  "bigquery": { "conversions": 0, "conversions_delta": 0, "conversion_rate_pct": 0, "conversion_rate_delta": 0, "revenue_usd": 0, "revenue_delta": 0, "pipeline_runs": 0 }
-}
+#### Wiring your pipeline
+
+`scripts/kpi-push.sh` is a ready-to-adapt template. It shows how to query PostHog, Grafana, and BigQuery, then write the snapshot JSON. Uncomment and adapt the sections for your setup:
+
+```bash
+# required env vars (add to ~/.zshrc.local or CI secrets):
+POSTHOG_API_KEY=...
+POSTHOG_PROJECT_ID=...
+GRAFANA_URL=https://grafana.example.com
+GRAFANA_API_KEY=...
+BIGQUERY_PROJECT=my-gcp-project
+
+./scripts/kpi-push.sh
 ```
 
-Delta fields are percentage change vs. the previous window. Negative deltas on `api_p95` and `error_rate` are shown as green (improvement).
+**Keeping it fresh — two patterns:**
+
+1. **Scheduled GitHub Actions** (recommended for teams) — add a workflow that runs `kpi-push.sh` on a cron schedule and commits the updated JSON. Team members get fresh data on `git pull`. Example job:
+
+```yaml
+- name: Fetch and commit KPIs
+  run: |
+    ./scripts/kpi-push.sh
+    git config user.name "github-actions[bot]"
+    git config user.email "github-actions[bot]@users.noreply.github.com"
+    git add vault/reports/kpi-snapshot.json
+    git diff --cached --quiet || git commit -m "chore: update kpi snapshot $(date +%Y-%m-%d)"
+    git push
+```
+
+2. **Local cron** — run `kpi-push.sh` on a schedule from your machine, commit and push. Lightweight for solo use.
 
 ### Per-project vault override
 
