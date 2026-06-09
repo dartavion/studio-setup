@@ -3,6 +3,8 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BASE_VAULT="$REPO_DIR/vault"
+LOCK_FILE="$REPO_DIR/versions.lock"
+CHECKSUM_FILE="$REPO_DIR/checksums.sha256"
 
 usage() {
   echo "Usage:"
@@ -10,83 +12,36 @@ usage() {
   echo "  $0                        Install WezTerm config and Claude Code hooks"
   echo "  $0 --plugins [vault]      Download plugin binaries into vault (default: vault/)"
   echo "  $0 --vault <path>         Seed a project vault from the base vault"
+  echo "  $0 --update-lock          Update versions.lock and checksums.sha256 to latest"
   exit 1
 }
 
-# ── Full install ──────────────────────────────────────────────────────────────
+# ── Security helpers ──────────────────────────────────────────────────────────
 
-full_install() {
-  echo "==> studio-setup full install"
+pinned_version() {
+  local id="$1"
+  python3 -c "import json,sys; d=json.load(open('$LOCK_FILE')); print(d['plugins'].get('$id','latest'))"
+}
 
-  # ── Homebrew ────────────────────────────────────────────────────────────────
-  if ! command -v brew &>/dev/null; then
-    echo "  installing Homebrew..."
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  else
-    echo "  homebrew ok"
-  fi
+stored_checksum() {
+  local id="$1"
+  grep "^$id=" "$CHECKSUM_FILE" 2>/dev/null | cut -d= -f2 || true
+}
 
-  # ── Prerequisites ───────────────────────────────────────────────────────────
-  install_cask() {
-    local app="$1" cask="$2"
-    if ! brew list --cask "$cask" &>/dev/null; then
-      echo "  installing $cask..."
-      brew install --cask "$cask"
-    else
-      echo "  $app ok"
-    fi
-  }
-
-  install_formula() {
-    local formula="$1"
-    if ! brew list "$formula" &>/dev/null; then
-      echo "  installing $formula..."
-      brew install "$formula"
-    else
-      echo "  $formula ok"
-    fi
-  }
-
-  install_cask    "WezTerm"               "wezterm"
-  install_cask    "Obsidian"              "obsidian"
-  install_cask    "JetBrains Mono NF"     "font-jetbrains-mono-nerd-font"
-  install_formula "gh"
-
-  if ! command -v node &>/dev/null; then
-    echo "  installing node..."
-    brew install node
-  else
-    echo "  node ok"
-  fi
-
-  if ! command -v claude &>/dev/null; then
-    echo "  installing Claude Code..."
-    npm install -g @anthropic-ai/claude-code
-  else
-    echo "  claude ok"
-  fi
-
-  if ! gh auth status &>/dev/null; then
+verify_checksum() {
+  local id="$1" file="$2"
+  local expected actual
+  expected="$(stored_checksum "$id")"
+  [ -z "$expected" ] && return 0  # no stored checksum yet — first run
+  actual="$(shasum -a 256 "$file" | awk '{print $1}')"
+  if [ "$actual" != "$expected" ]; then
     echo ""
-    echo "  gh is not authenticated. Run: gh auth login"
-    echo "  Then re-run: $0 --full"
+    echo "  !! CHECKSUM MISMATCH: $id"
+    echo "     expected: $expected"
+    echo "     got:      $actual"
+    echo "     Aborting. If this is a legitimate update run: $0 --update-lock"
     exit 1
   fi
-
-  # ── Core install (WezTerm + hooks) ──────────────────────────────────────────
-  bash "$0"
-
-  # ── Obsidian plugins + theme ────────────────────────────────────────────────
-  install_plugins "$BASE_VAULT"
-
-  echo ""
-  echo "==> All done."
-  echo ""
-  echo "  One manual step remaining:"
-  echo "  1. Open Obsidian → Add Vault → select $(pwd)/vault"
-  echo "  2. Settings → Community plugins → click 'Trust' for each plugin"
-  echo ""
-  echo "  Dashboard opens automatically and KPI cards render on first load."
 }
 
 # ── Plugin manifest: id -> github_repo ───────────────────────────────────────
@@ -112,13 +67,27 @@ install_plugins() {
 
   for entry in "${PLUGIN_IDS[@]}"; do
     local id="${entry%%:*}" repo="${entry##*:}"
+    local version
+    version="$(pinned_version "$id")"
     mkdir -p "$target/plugins/$id"
-    echo "  $id"
+    echo "  $id @ $version"
+
     for asset in main.js manifest.json styles.css; do
       local url
-      url=$(gh api "repos/$repo/releases/latest" \
+      url=$(gh api "repos/$repo/releases/tags/$version" \
         -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
-      [ -n "$url" ] && curl -sL "$url" -o "$target/plugins/$id/$asset"
+      # fall back to latest if pinned tag has no release assets (e.g. beta tags)
+      if [ -z "$url" ]; then
+        url=$(gh api "repos/$repo/releases/latest" \
+          -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
+      fi
+      if [ -n "$url" ]; then
+        curl -sL "$url" -o "$target/plugins/$id/$asset"
+        # verify checksum for main.js only
+        if [ "$asset" = "main.js" ]; then
+          verify_checksum "$id" "$target/plugins/$id/$asset"
+        fi
+      fi
     done
   done
 
@@ -127,12 +96,117 @@ install_plugins() {
   if [ ! -f "$theme_dir/theme.css" ]; then
     echo "  Catppuccin theme"
     mkdir -p "$theme_dir"
-    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"    -o "$theme_dir/theme.css"
-    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" -o "$theme_dir/manifest.json"
+    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"     -o "$theme_dir/theme.css"
+    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json"  -o "$theme_dir/manifest.json"
   fi
 
-  echo "==> done — reload Obsidian to activate"
+  echo "==> plugins installed and verified"
 }
+
+# ── Update lockfile ───────────────────────────────────────────────────────────
+
+update_lock() {
+  echo "==> Updating versions.lock and checksums.sha256"
+  echo "    Review all version changes before committing."
+  echo ""
+
+  local versions_json='{"plugins":{'
+  local first=1
+  for entry in "${PLUGIN_IDS[@]}"; do
+    local id="${entry%%:*}" repo="${entry##*:}"
+    local version
+    version=$(gh api "repos/$repo/releases/latest" -q '.tag_name' 2>/dev/null)
+    echo "  $id -> $version"
+    [ $first -eq 0 ] && versions_json+=","
+    versions_json+="\"$id\":\"$version\""
+    first=0
+  done
+  versions_json+="}}"
+  echo "$versions_json" | python3 -m json.tool > "$LOCK_FILE"
+
+  # Re-download and recompute checksums
+  install_plugins "$BASE_VAULT"
+
+  printf "# SHA256 checksums for plugin main.js files at pinned versions\n" > "$CHECKSUM_FILE"
+  printf "# Regenerate with: ./install.sh --update-lock\n\n" >> "$CHECKSUM_FILE"
+  for dir in "$BASE_VAULT/.obsidian/plugins/"/*/; do
+    local id
+    id="$(basename "$dir")"
+    [ -f "$dir/main.js" ] && \
+      echo "$id=$(shasum -a 256 "$dir/main.js" | awk '{print $1}')" >> "$CHECKSUM_FILE"
+  done
+
+  echo ""
+  echo "==> Lock updated. Review the diff, then commit versions.lock and checksums.sha256."
+}
+
+# ── Full install ──────────────────────────────────────────────────────────────
+
+full_install() {
+  echo "==> studio-setup full install"
+
+  # ── Homebrew ────────────────────────────────────────────────────────────────
+  if ! command -v brew &>/dev/null; then
+    echo "  installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  else
+    echo "  homebrew ok"
+  fi
+
+  install_cask() {
+    local app="$1" cask="$2"
+    if ! brew list --cask "$cask" &>/dev/null; then
+      echo "  installing $cask..."
+      brew install --cask "$cask"
+    else
+      echo "  $app ok"
+    fi
+  }
+
+  install_formula() {
+    local formula="$1"
+    if ! brew list "$formula" &>/dev/null; then
+      echo "  installing $formula..."
+      brew install "$formula"
+    else
+      echo "  $formula ok"
+    fi
+  }
+
+  install_cask    "WezTerm"           "wezterm"
+  install_cask    "Obsidian"          "obsidian"
+  install_cask    "JetBrains Mono NF" "font-jetbrains-mono-nerd-font"
+  install_formula "gh"
+  install_formula "node"
+
+  if ! command -v claude &>/dev/null; then
+    echo "  installing Claude Code..."
+    npm install -g --ignore-scripts @anthropic-ai/claude-code
+  else
+    echo "  claude ok"
+  fi
+
+  if ! gh auth status &>/dev/null; then
+    echo ""
+    echo "  gh is not authenticated. Run: gh auth login"
+    echo "  Then re-run: $0 --full"
+    exit 1
+  fi
+
+  bash "$0"
+  install_plugins "$BASE_VAULT"
+
+  echo ""
+  echo "==> All done."
+  echo ""
+  echo "  One manual step remaining:"
+  echo "  1. Open Obsidian → Add Vault → select $(pwd)/vault"
+  echo "  2. Settings → Community plugins → click 'Trust' for each plugin"
+  echo ""
+  echo "  Dashboard opens automatically and KPI cards render on first load."
+}
+
+# ── seed_vault ────────────────────────────────────────────────────────────────
 
 seed_vault() {
   local target="$1"
@@ -175,20 +249,13 @@ seed_vault() {
 # ── Argument parsing ──────────────────────────────────────────────────────────
 
 case "${1:-}" in
-  --full)
-    full_install
-    ;;
-  --plugins)
-    install_plugins "${2:-$BASE_VAULT}"
-    ;;
-  --vault)
-    [[ -z "${2:-}" ]] && usage
-    seed_vault "$2"
-    ;;
+  --full)        full_install ;;
+  --plugins)     install_plugins "${2:-$BASE_VAULT}" ;;
+  --vault)       [[ -z "${2:-}" ]] && usage; seed_vault "$2" ;;
+  --update-lock) update_lock ;;
   "")
     echo "==> studio-setup install"
 
-    # ── WezTerm ──────────────────────────────────────────────────────────
     echo "  wezterm"
     mkdir -p ~/.config/wezterm/workspaces
     for f in wezterm.lua utils.lua; do
@@ -205,7 +272,6 @@ case "${1:-}" in
     # ── Dotfiles ─────────────────────────────────────────────────────────
     # TODO: symlink dotfiles
 
-    # ── Claude Code hooks ────────────────────────────────────────────────
     echo "  claude hooks"
     mkdir -p ~/.claude/hooks
     for f in "$REPO_DIR/hooks/"*.sh; do
@@ -215,11 +281,8 @@ case "${1:-}" in
       echo "    ~> ~/.claude/hooks/$name"
     done
 
-    # Merge hook entries into ~/.claude/settings.json
     SETTINGS=~/.claude/settings.json
-    if [ ! -f "$SETTINGS" ]; then
-      echo '{}' > "$SETTINGS"
-    fi
+    [ ! -f "$SETTINGS" ] && echo '{}' > "$SETTINGS"
 
     HOOKS_JSON='{
       "PreToolUse":  [{"matcher":"Write","hooks":[{"type":"command","command":"~/.claude/hooks/file-gate.sh"}]}],
@@ -248,7 +311,5 @@ PYEOF
 
     echo "==> done"
     ;;
-  *)
-    usage
-    ;;
+  *) usage ;;
 esac

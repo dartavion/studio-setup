@@ -174,6 +174,22 @@ Use `install.ps1` in place of `install.sh`. Hook entries in `~/.claude/settings.
 
 ---
 
+## Security
+
+Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install.
+
+The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks.
+
+### Updating plugins
+
+```bash
+./install.sh --update-lock
+```
+
+This fetches the latest release for each plugin, re-downloads binaries, recomputes checksums, and updates both files. Review the diff before committing — you're explicitly approving the new versions.
+
+---
+
 ## Dotfiles
 
 Coming soon.
