@@ -112,17 +112,31 @@ function Install-Plugins($vaultPath) {
         Write-Host "  $id @ $version"
 
         foreach ($asset in @("main.js", "manifest.json", "styles.css")) {
-            $url = gh api "repos/$repo/releases/tags/$version" `
-                -q ".assets[] | select(.name == `"$asset`") | .browser_download_url" 2>$null
-            if (-not $url) {
-                $url = gh api "repos/$repo/releases/latest" `
+            $dest      = Join-Path $plugDir $asset
+            $directUrl = "https://github.com/$repo/releases/download/$version/$asset"
+            $downloaded = $false
+
+            # try direct URL first — no auth needed
+            try {
+                Invoke-WebRequest -Uri $directUrl -OutFile $dest -UseBasicParsing -ErrorAction Stop
+                $downloaded = $true
+            } catch { }
+
+            # fall back to gh api for non-standard release layouts
+            if (-not $downloaded -and (Test-Command gh)) {
+                $url = gh api "repos/$repo/releases/tags/$version" `
                     -q ".assets[] | select(.name == `"$asset`") | .browser_download_url" 2>$null
+                if (-not $url) {
+                    $url = gh api "repos/$repo/releases/latest" `
+                        -q ".assets[] | select(.name == `"$asset`") | .browser_download_url" 2>$null
+                }
+                if ($url) {
+                    Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
+                    $downloaded = $true
+                }
             }
-            if ($url) {
-                $dest = Join-Path $plugDir $asset
-                Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
-                if ($asset -eq "main.js") { Assert-Checksum $id $dest }
-            }
+
+            if ($downloaded -and $asset -eq "main.js") { Assert-Checksum $id $dest }
         }
     }
 

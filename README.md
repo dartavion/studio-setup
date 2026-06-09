@@ -28,7 +28,8 @@ Dev environment kit for designers, engineers, and AI builders.
 One prerequisite: [Obsidian](https://obsidian.md). That's it — no `gh` CLI, no authentication needed.
 
 ```bash
-git clone git@github.com:dartavion/studio-setup.git
+# HTTPS (no SSH keys needed)
+git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
 ./install.sh --vault-only        # macOS / Linux / WSL
 .\install.ps1 -VaultOnly         # Windows PowerShell
@@ -46,7 +47,8 @@ The Dashboard opens automatically. KPI cards, tasks, and project tables render i
 ### Engineers and AI builders — full setup
 
 ```bash
-git clone git@github.com:dartavion/studio-setup.git
+git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended for devs)
+# or: git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
 ./install.sh --full              # macOS
 .\install.ps1 -Full              # Windows PowerShell

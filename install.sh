@@ -459,17 +459,13 @@ ask_persona() {
 vault_only() {
   echo "==> studio-setup — Obsidian vault setup"
 
-  if ! gh_available; then
-    ask_persona
-  fi
-
   install_plugins "$BASE_VAULT"
 
   echo ""
   echo "==> Done. One manual step:"
   echo ""
   echo "  1. Open Obsidian"
-  echo "  2. Add Vault → select: $(pwd)/vault"
+  echo "  2. Add Vault → select: $REPO_DIR/vault"
   echo "  3. Settings → Community plugins → click 'Trust' for each plugin"
   echo ""
   echo "  The Dashboard opens automatically. KPI cards, tasks, and project"
@@ -479,7 +475,10 @@ vault_only() {
 # ── Argument parsing ──────────────────────────────────────────────────────────
 
 case "${1:-}" in
-  --vault-only)  vault_only ;;
+  --vault-only)
+    if ! gh_available; then ask_persona; fi
+    vault_only
+    ;;
   --full)        full_install ;;
   --plugins)     install_plugins "${2:-$BASE_VAULT}" ;;
   --vault)       [[ -z "${2:-}" ]] && usage; seed_vault "$2" ;;
