@@ -18,12 +18,11 @@ $ErrorActionPreference = "Stop"
 function Test-Command($name) { $null -ne (Get-Command $name -ErrorAction SilentlyContinue) }
 
 function Install-WingetApp($id, $label) {
-    $installed = winget list --id $id --exact --accept-source-agreements 2>$null
-    if ($LASTEXITCODE -eq 0 -and $installed -match $id) {
-        Write-Host "  $label ok"
-    } else {
-        Write-Host "  installing $label..."
-        winget install --id $id --exact --silent --accept-source-agreements --accept-package-agreements
+    Write-Host "  ensuring $label..."
+    winget install --id $id --exact --silent --accept-source-agreements --accept-package-agreements 2>$null
+    # 0 = installed now; -1978335189 (0x8A150021) = already installed — both are fine
+    if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne -1978335189) {
+        Write-Host "  warning: winget exited $LASTEXITCODE for $label — may need manual install"
     }
 }
 
