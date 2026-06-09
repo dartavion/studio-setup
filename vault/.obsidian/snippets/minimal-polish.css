@@ -100,3 +100,67 @@
 
 .kpi-up   { color: #34c78a; }
 .kpi-down { color: #f87171; }
+
+/* ── KPI header row (meta + refresh) ──────────────────────────────────────── */
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.kpi-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-shrink: 0;
+}
+
+.kpi-last-refreshed {
+  font-size: 0.72em;
+  opacity: 0.4;
+  letter-spacing: 0.02em;
+}
+
+.kpi-refresh-btn {
+  background: transparent;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.72em;
+  padding: 0.2em 0.65em;
+  transition: background 0.15s, color 0.15s;
+}
+
+.kpi-refresh-btn:hover {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
+/* ── Loading state ─────────────────────────────────────────────────────────── */
+
+.kpi-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  font-size: 0.82em;
+  opacity: 0.55;
+}
+
+@keyframes kpi-spin {
+  to { transform: rotate(360deg); }
+}
+
+.kpi-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(203, 166, 247, 0.25);
+  border-top-color: #cba6f7;
+  border-radius: 50%;
+  animation: kpi-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
