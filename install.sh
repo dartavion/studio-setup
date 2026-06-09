@@ -41,13 +41,13 @@ install_plugins() {
     done
   done
 
-  # Minimal theme
-  local theme_dir="$target/themes/Minimal"
+  # Catppuccin theme
+  local theme_dir="$target/themes/Catppuccin"
   if [ ! -f "$theme_dir/theme.css" ]; then
-    echo "  Minimal theme"
+    echo "  Catppuccin theme"
     mkdir -p "$theme_dir"
-    curl -sL "https://raw.githubusercontent.com/kepano/obsidian-minimal/master/theme.css"    -o "$theme_dir/theme.css"
-    curl -sL "https://raw.githubusercontent.com/kepano/obsidian-minimal/master/manifest.json" -o "$theme_dir/manifest.json"
+    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"    -o "$theme_dir/theme.css"
+    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" -o "$theme_dir/manifest.json"
   fi
 
   echo "==> done — reload Obsidian to activate"

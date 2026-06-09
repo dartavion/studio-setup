@@ -1,5 +1,5 @@
 {
-  "cssTheme": "Minimal",
+  "cssTheme": "Catppuccin",
   "enabledCssSnippets": [
     "minimal-polish",
     "ui-compact"

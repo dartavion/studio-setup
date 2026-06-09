@@ -10,7 +10,7 @@ tags: [project]
 
 
 ## Tasks
-- [ ] 
+- [x] 
 
 ## Notes
 
