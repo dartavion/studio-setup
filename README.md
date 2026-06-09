@@ -15,16 +15,22 @@ Dev environment kit for designers, engineers, and AI builders.
 
 ## Prerequisites
 
-Install these before running the setup:
+`./install.sh --full` handles all of these automatically on macOS. You only need two things before running it:
 
-| Tool | Install |
-|------|---------|
-| [WezTerm](https://wezfurlong.org/wezterm/) | `brew install --cask wezterm` |
-| [Obsidian](https://obsidian.md) | `brew install --cask obsidian` |
-| [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` |
-| [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) | `brew install --cask font-jetbrains-mono-nerd-font` |
-| `gh` CLI | `brew install gh && gh auth login` |
-| `python3` | ships with macOS |
+- **Homebrew** — [brew.sh](https://brew.sh) (the script installs it if missing)
+- **`gh` authenticated** — run `gh auth login` once before setup if you haven't already
+
+Everything else (WezTerm, Obsidian, Claude Code, JetBrains Mono Nerd Font) is installed by the script.
+
+> **Linux / Windows:** install prerequisites manually — see the table below, then run `./install.sh` (Linux) or `./install.ps1` (Windows).
+>
+> | Tool | Install |
+> |------|---------|
+> | [WezTerm](https://wezfurlong.org/wezterm/) | `brew install --cask wezterm` |
+> | [Obsidian](https://obsidian.md) | `brew install --cask obsidian` |
+> | [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` |
+> | [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) | `brew install --cask font-jetbrains-mono-nerd-font` |
+> | `gh` CLI | `brew install gh && gh auth login` |
 
 ---
 
@@ -33,20 +39,14 @@ Install these before running the setup:
 ```bash
 git clone git@github.com:dartavion/studio-setup.git
 cd studio-setup
-
-# 1. Symlink WezTerm config and Claude Code hooks
-./install.sh
-
-# 2. Download Obsidian plugin binaries and Catppuccin theme
-./install.sh --plugins
-
-# 3. Open vault/ in Obsidian
-#    — click "Trust" for each plugin when prompted
-#    — Settings → Appearance → set flavour to "Mocha"
-#    — Settings → Dataview → enable "Enable JavaScript Queries"
+./install.sh --full
 ```
 
-**Verify it's working:** open `Dashboard.md` — you should see KPI cards, an Active Projects table, and a Recent Notes list. If KPI cards show a code block instead of cards, check the Dataview JavaScript Queries setting.
+That's it. The script installs all prerequisites, wires WezTerm and Claude Code hooks, downloads all Obsidian plugins, and pre-configures Catppuccin Mocha and DataviewJS.
+
+**One manual step:** open Obsidian → Add Vault → select `vault/` → Settings → Community plugins → click **Trust** for each plugin. This is an Obsidian security requirement that can't be scripted.
+
+**Verify it's working:** open `Dashboard.md` — KPI cards, Active Projects table, and Recent Notes should all render immediately.
 
 ---
 

@@ -6,10 +6,80 @@ BASE_VAULT="$REPO_DIR/vault"
 
 usage() {
   echo "Usage:"
-  echo "  $0                        Install WezTerm, dotfiles, and Claude Code hooks"
+  echo "  $0 --full                 Full setup: prerequisites + everything below"
+  echo "  $0                        Install WezTerm config and Claude Code hooks"
   echo "  $0 --plugins [vault]      Download plugin binaries into vault (default: vault/)"
   echo "  $0 --vault <path>         Seed a project vault from the base vault"
   exit 1
+}
+
+# ── Full install ──────────────────────────────────────────────────────────────
+
+full_install() {
+  echo "==> studio-setup full install"
+
+  # ── Homebrew ────────────────────────────────────────────────────────────────
+  if ! command -v brew &>/dev/null; then
+    echo "  installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  else
+    echo "  homebrew ok"
+  fi
+
+  # ── Prerequisites ───────────────────────────────────────────────────────────
+  install_cask() {
+    local app="$1" cask="$2"
+    if ! brew list --cask "$cask" &>/dev/null; then
+      echo "  installing $cask..."
+      brew install --cask "$cask"
+    else
+      echo "  $app ok"
+    fi
+  }
+
+  install_formula() {
+    local formula="$1"
+    if ! brew list "$formula" &>/dev/null; then
+      echo "  installing $formula..."
+      brew install "$formula"
+    else
+      echo "  $formula ok"
+    fi
+  }
+
+  install_cask    "WezTerm"               "wezterm"
+  install_cask    "Obsidian"              "obsidian"
+  install_cask    "JetBrains Mono NF"     "font-jetbrains-mono-nerd-font"
+  install_formula "gh"
+
+  if ! command -v claude &>/dev/null; then
+    echo "  installing Claude Code..."
+    npm install -g @anthropic-ai/claude-code
+  else
+    echo "  claude ok"
+  fi
+
+  if ! gh auth status &>/dev/null; then
+    echo ""
+    echo "  gh is not authenticated. Run: gh auth login"
+    echo "  Then re-run: $0 --full"
+    exit 1
+  fi
+
+  # ── Core install (WezTerm + hooks) ──────────────────────────────────────────
+  bash "$0"
+
+  # ── Obsidian plugins + theme ────────────────────────────────────────────────
+  install_plugins "$BASE_VAULT"
+
+  echo ""
+  echo "==> All done."
+  echo ""
+  echo "  One manual step remaining:"
+  echo "  1. Open Obsidian → Add Vault → select $(pwd)/vault"
+  echo "  2. Settings → Community plugins → click 'Trust' for each plugin"
+  echo ""
+  echo "  Dashboard opens automatically and KPI cards render on first load."
 }
 
 # ── Plugin manifest: id -> github_repo ───────────────────────────────────────
@@ -98,6 +168,9 @@ seed_vault() {
 # ── Argument parsing ──────────────────────────────────────────────────────────
 
 case "${1:-}" in
+  --full)
+    full_install
+    ;;
   --plugins)
     install_plugins "${2:-$BASE_VAULT}"
     ;;
