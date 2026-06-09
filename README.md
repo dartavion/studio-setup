@@ -6,47 +6,52 @@ Dev environment kit for designers, engineers, and AI builders.
 
 | Folder | Contents |
 |--------|----------|
-| `wezterm/` | Terminal config, keybindings, and workspace definitions |
 | `vault/` | Obsidian base vault — theme, plugins, dashboard, templates |
+| `wezterm/` | Terminal config, keybindings, and workspace definitions |
 | `dotfiles/` | Shell, prompt, and editor config |
 | `hooks/` | Claude Code hooks |
 
 ---
 
-## Prerequisites
+## Pick your path
 
-`./install.sh --full` handles all of these automatically on macOS. You only need two things before running it:
+### Designers and product folks — just Obsidian
 
-- **Homebrew** — [brew.sh](https://brew.sh) (the script installs it if missing)
-- **`gh` authenticated** — run `gh auth login` once before setup if you haven't already
-
-Everything else (WezTerm, Obsidian, Claude Code, JetBrains Mono Nerd Font) is installed by the script.
-
-> **Linux / Windows:** install prerequisites manually — see the table below, then run `./install.sh` (Linux) or `./install.ps1` (Windows).
->
-> | Tool | Install |
-> |------|---------|
-> | [WezTerm](https://wezfurlong.org/wezterm/) | `brew install --cask wezterm` |
-> | [Obsidian](https://obsidian.md) | `brew install --cask obsidian` |
-> | [Claude Code](https://claude.ai/code) | `npm install -g @anthropic-ai/claude-code` |
-> | [JetBrains Mono Nerd Font](https://www.nerdfonts.com/) | `brew install --cask font-jetbrains-mono-nerd-font` |
-> | `gh` CLI | `brew install gh && gh auth login` |
-
----
-
-## Quick start
+Two prerequisites: [Obsidian](https://obsidian.md) and the [gh CLI](https://cli.github.com) (authenticated).
 
 ```bash
 git clone git@github.com:dartavion/studio-setup.git
 cd studio-setup
-./install.sh --full
+./install.sh --vault-only        # macOS / Linux / WSL
+.\install.ps1 -VaultOnly         # Windows PowerShell
 ```
 
-That's it. The script installs all prerequisites, wires WezTerm and Claude Code hooks, downloads all Obsidian plugins, and pre-configures Catppuccin Mocha and DataviewJS.
+That's it. The script downloads all plugins at pinned, verified versions. Then:
 
-**One manual step:** open Obsidian → Add Vault → select `vault/` → Settings → Community plugins → click **Trust** for each plugin. This is an Obsidian security requirement that can't be scripted.
+1. Open Obsidian → **Add Vault** → select the `vault/` folder
+2. Settings → Community plugins → click **Trust** for each plugin
 
-**Verify it's working:** open `Dashboard.md` — KPI cards, Active Projects table, and Recent Notes should all render immediately.
+The Dashboard opens automatically. KPI cards, tasks, and project tables render immediately.
+
+---
+
+### Engineers and AI builders — full setup
+
+```bash
+git clone git@github.com:dartavion/studio-setup.git
+cd studio-setup
+./install.sh --full              # macOS
+.\install.ps1 -Full              # Windows PowerShell
+./install.sh --full              # WSL (auto-detected, uses apt)
+```
+
+Installs and wires everything: WezTerm, Obsidian, shell config, Neovim, Claude Code hooks, and all Obsidian plugins. Only prerequisites: Homebrew on macOS (installed automatically if missing) and `gh auth login` run once.
+
+**One manual step after full install:** open Obsidian → Add Vault → select `vault/` → Community plugins → click **Trust**. This is an Obsidian security requirement that can't be scripted.
+
+See the [Windows](#windows) section for WSL vs PowerShell details.
+
+---
 
 ---
 

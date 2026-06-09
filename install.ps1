@@ -1,5 +1,6 @@
 param(
     [switch]$Full,
+    [switch]$VaultOnly,
     [switch]$Plugins,
     [string]$Vault,
     [switch]$UpdateLock
@@ -362,9 +363,43 @@ function Invoke-BaseInstall {
     Write-Host "==> done"
 }
 
+# ── vault-only install (designers / product folks) ───────────────────────────
+
+function Invoke-VaultOnly {
+    Write-Host "==> studio-setup — Obsidian vault setup"
+    Write-Host ""
+
+    if (-not (Test-Command gh)) {
+        Write-Host "  gh CLI is required to download plugins."
+        Write-Host "  Install it from https://cli.github.com, then run: gh auth login"
+        Write-Host "  Re-run this script once authenticated."
+        exit 1
+    }
+
+    $ghAuth = gh auth status 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  gh is not authenticated. Run: gh auth login"
+        Write-Host "  Then re-run: .\install.ps1 -VaultOnly"
+        exit 1
+    }
+
+    Install-Plugins $BaseVault
+
+    Write-Host ""
+    Write-Host "==> Done. One manual step:"
+    Write-Host ""
+    Write-Host "  1. Open Obsidian"
+    Write-Host "  2. Add Vault -> select: $BaseVault"
+    Write-Host "  3. Settings -> Community plugins -> click 'Trust' for each plugin"
+    Write-Host ""
+    Write-Host "  The Dashboard opens automatically. KPI cards, tasks, and project"
+    Write-Host "  tables all render on first load — no further configuration needed."
+}
+
 # ── entry point ───────────────────────────────────────────────────────────────
 
 if     ($Full)                { Invoke-FullInstall }
+elseif ($VaultOnly)           { Invoke-VaultOnly }
 elseif ($Plugins -and $Vault) { Install-Plugins $Vault }
 elseif ($Plugins)             { Install-Plugins $BaseVault }
 elseif ($Vault)               { Invoke-SeedVault $Vault }

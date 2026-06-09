@@ -8,6 +8,7 @@ CHECKSUM_FILE="$REPO_DIR/checksums.sha256"
 
 usage() {
   echo "Usage:"
+  echo "  $0 --vault-only           Obsidian only: download plugins, open vault/ in Obsidian"
   echo "  $0 --full                 Full setup: prerequisites + everything below"
   echo "  $0                        Install WezTerm config and Claude Code hooks"
   echo "  $0 --plugins [vault]      Download plugin binaries into vault (default: vault/)"
@@ -395,9 +396,42 @@ seed_vault() {
   echo "==> seeded — run: $0 --plugins $target"
 }
 
+# ── Vault-only install (designers / product folks) ───────────────────────────
+
+vault_only() {
+  echo "==> studio-setup — Obsidian vault setup"
+  echo ""
+
+  if ! command -v gh &>/dev/null; then
+    echo "  gh CLI is required to download plugins."
+    echo "  Install it from https://cli.github.com, then run: gh auth login"
+    echo "  Re-run this script once authenticated."
+    exit 1
+  fi
+
+  if ! gh auth status &>/dev/null; then
+    echo "  gh is not authenticated. Run: gh auth login"
+    echo "  Then re-run: $0 --vault-only"
+    exit 1
+  fi
+
+  install_plugins "$BASE_VAULT"
+
+  echo ""
+  echo "==> Done. One manual step:"
+  echo ""
+  echo "  1. Open Obsidian"
+  echo "  2. Add Vault → select: $(pwd)/vault"
+  echo "  3. Settings → Community plugins → click 'Trust' for each plugin"
+  echo ""
+  echo "  The Dashboard opens automatically. KPI cards, tasks, and project"
+  echo "  tables all render on first load — no further configuration needed."
+}
+
 # ── Argument parsing ──────────────────────────────────────────────────────────
 
 case "${1:-}" in
+  --vault-only)  vault_only ;;
   --full)        full_install ;;
   --plugins)     install_plugins "${2:-$BASE_VAULT}" ;;
   --vault)       [[ -z "${2:-}" ]] && usage; seed_vault "$2" ;;
