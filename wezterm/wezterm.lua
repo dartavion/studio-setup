@@ -4,17 +4,22 @@ local act     = wezterm.action
 local config  = wezterm.config_builder()
 
 -- ── Shell & PATH ─────────────────────────────────────────────────────────────
+-- macOS/Linux only — on Windows, WezTerm uses the default shell (PowerShell or
+-- a WSL distro) and inherits PATH from the system environment.
 
-config.default_prog = { '/bin/zsh', '--login' }
+local home   = wezterm.home_dir
+local target = wezterm.target_triple  -- e.g. "x86_64-pc-windows-msvc"
 
-local home = wezterm.home_dir
-config.set_environment_variables = {
-  PATH = '/opt/homebrew/bin:'
-      .. '/opt/homebrew/sbin:'
-      .. '/usr/local/bin:'
-      .. home .. '/.local/bin:'
-      .. '/usr/bin:/bin:/usr/sbin:/sbin',
-}
+if not target:find('windows') then
+  config.default_prog = { '/bin/zsh', '--login' }
+  config.set_environment_variables = {
+    PATH = '/opt/homebrew/bin:'
+        .. '/opt/homebrew/sbin:'
+        .. '/usr/local/bin:'
+        .. home .. '/.local/bin:'
+        .. '/usr/bin:/bin:/usr/sbin:/sbin',
+  }
+end
 
 -- ── Appearance ───────────────────────────────────────────────────────────────
 

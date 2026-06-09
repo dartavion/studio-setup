@@ -1,7 +1,10 @@
 #!/bin/bash
 # Called with "stop" (per-turn) or "end" (session close)
-# Pricing: claude-sonnet-4-6 API list rates ($/MTok)
+#
+# !! MODEL-SPECIFIC PRICING — update these constants if you switch models !!
+# Current: claude-sonnet-4-6 API list rates ($/MTok)
 #   input $3.00 | output $15.00 | cache_read $0.30 | cache_write_5m $3.75 | cache_write_1h $6.00
+# Rates: https://www.anthropic.com/pricing
 
 MODE="${1:-end}"
 

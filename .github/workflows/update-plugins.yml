@@ -202,7 +202,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BRANCH="chore/update-plugins-$(date +%Y-%m-%d)"
+          BRANCH="chore/update-plugins"
           git checkout -b "$BRANCH"
           git add versions.lock checksums.sha256
           git commit -m "chore: update plugin versions $(date +%Y-%m-%d)"
