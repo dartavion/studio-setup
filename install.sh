@@ -126,7 +126,45 @@ case "${1:-}" in
     # TODO: symlink dotfiles
 
     # ── Claude Code hooks ────────────────────────────────────────────────
-    # TODO: symlink hooks into ~/.claude/hooks/
+    echo "  claude hooks"
+    mkdir -p ~/.claude/hooks
+    for f in "$REPO_DIR/hooks/"*.sh; do
+      name="$(basename "$f")"
+      ln -sf "$f" ~/.claude/hooks/"$name"
+      chmod +x "$f"
+      echo "    ~> ~/.claude/hooks/$name"
+    done
+
+    # Merge hook entries into ~/.claude/settings.json
+    SETTINGS=~/.claude/settings.json
+    if [ ! -f "$SETTINGS" ]; then
+      echo '{}' > "$SETTINGS"
+    fi
+
+    HOOKS_JSON='{
+      "PreToolUse":  [{"matcher":"Write","hooks":[{"type":"command","command":"~/.claude/hooks/file-gate.sh"}]}],
+      "PostToolUse": [{"matcher":"Edit|Write","hooks":[{"type":"command","command":"~/.claude/hooks/edit-tracker.sh","async":true}]}],
+      "Stop":        [{"hooks":[{"type":"command","command":"~/.claude/hooks/turn-review.sh"}]},
+                      {"hooks":[{"type":"command","command":"~/.claude/hooks/session-end.sh stop"}]}],
+      "SessionStart":[{"hooks":[{"type":"command","command":"~/.claude/hooks/session-start.sh"}]}],
+      "SessionEnd":  [{"hooks":[{"type":"command","command":"~/.claude/hooks/session-end.sh end"}]}]
+    }'
+
+    python3 - "$SETTINGS" "$HOOKS_JSON" <<'PYEOF'
+import json, sys
+settings_path = sys.argv[1]
+new_hooks = json.loads(sys.argv[2])
+with open(settings_path) as f:
+    settings = json.load(f)
+existing = settings.get("hooks", {})
+for event, entries in new_hooks.items():
+    if event not in existing:
+        existing[event] = entries
+settings["hooks"] = existing
+with open(settings_path, "w") as f:
+    json.dump(settings, f, indent=2)
+print("    settings.json updated")
+PYEOF
 
     echo "==> done"
     ;;
