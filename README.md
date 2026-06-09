@@ -55,7 +55,7 @@ That's it. The script installs all prerequisites, wires WezTerm and Claude Code 
 Base config is symlinked from `wezterm/wezterm.lua` to `~/.config/wezterm/` by `install.sh`.
 
 **What you get:**
-- Catppuccin / Tokyo Night color scheme, JetBrains Mono Nerd Font
+- Tokyo Night color scheme, JetBrains Mono Nerd Font
 - Vim-style pane navigation (`CMD+SHIFT+h/j/k/l`)
 - Pane splits (`CMD+D` horizontal, `CMD+SHIFT+D` vertical)
 - Workspace picker (`CMD+O`)

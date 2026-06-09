@@ -52,6 +52,13 @@ full_install() {
   install_cask    "JetBrains Mono NF"     "font-jetbrains-mono-nerd-font"
   install_formula "gh"
 
+  if ! command -v node &>/dev/null; then
+    echo "  installing node..."
+    brew install node
+  else
+    echo "  node ok"
+  fi
+
   if ! command -v claude &>/dev/null; then
     echo "  installing Claude Code..."
     npm install -g @anthropic-ai/claude-code
