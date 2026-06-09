@@ -348,6 +348,11 @@ function Invoke-BaseInstall {
         Copy-Item $f.FullName (Join-Path $hooksDir $f.Name) -Force
         Write-Host "    -> $hooksDir\$($f.Name)"
     }
+    # copy supporting config files alongside the hooks
+    foreach ($f in Get-ChildItem (Join-Path $RepoDir "hooks\*.json")) {
+        Copy-Item $f.FullName (Join-Path $hooksDir $f.Name) -Force
+        Write-Host "    -> $hooksDir\$($f.Name)"
+    }
 
     $settingsPath = Join-Path $env:USERPROFILE ".claude\settings.json"
     if (-not (Test-Path $settingsPath)) { '{}' | Set-Content $settingsPath }

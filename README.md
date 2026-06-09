@@ -44,15 +44,17 @@ See the [Windows](#windows) section for WSL vs PowerShell details.
 
 ### Designers and product folks — just Obsidian
 
-One prerequisite: [Obsidian](https://obsidian.md). No `gh` CLI, no SSH keys, no terminal experience needed.
+Prerequisites: [Obsidian](https://obsidian.md) and a terminal (two commands). No `gh` CLI or SSH keys required.
 
+**Option 1 — git clone:**
 ```bash
-# HTTPS — no SSH keys required
 git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
 ./install.sh --vault-only        # macOS / Linux / WSL
 .\install.ps1 -VaultOnly         # Windows PowerShell
 ```
+
+**Option 2 — no git:** [Download ZIP](https://github.com/dartavion/studio-setup/archive/refs/heads/main.zip), unzip it, open a terminal in the folder, then run the install command above.
 
 The script downloads all plugins directly from GitHub releases at pinned, verified versions. Then:
 

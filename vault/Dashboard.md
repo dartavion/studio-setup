@@ -16,8 +16,19 @@ const render = async () => {
       <span class="kpi-spinner"></span> Loading KPIs…
     </div>`;
 
-  const raw = await app.vault.adapter.read("reports/kpi-snapshot.json");
-  const k = JSON.parse(raw);
+  let k;
+  try {
+    const raw = await app.vault.adapter.read("reports/kpi-snapshot.json");
+    k = JSON.parse(raw);
+  } catch (e) {
+    dv.container.innerHTML = `
+      <div class="kpi-error">
+        <strong>KPI data not found or invalid.</strong><br>
+        Run <code>scripts/kpi-push.sh</code> to generate it, or update
+        <code>reports/kpi-snapshot.json</code> with your pipeline output.
+      </div>`;
+    return;
+  }
 
   const fmt = n => n?.toLocaleString() ?? "—";
   const pct = n => n != null ? `${n}%` : "—";

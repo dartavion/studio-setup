@@ -154,6 +154,22 @@
   to { transform: rotate(360deg); }
 }
 
+.kpi-error {
+  padding: 1rem;
+  border-radius: 8px;
+  background: var(--background-secondary);
+  border-left: 3px solid #f38ba8;
+  font-size: 0.85em;
+  line-height: 1.6;
+}
+
+.kpi-error code {
+  background: var(--background-primary);
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-size: 0.9em;
+}
+
 .kpi-spinner {
   display: inline-block;
   width: 13px;

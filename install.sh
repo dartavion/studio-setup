@@ -434,6 +434,13 @@ seed_vault() {
 # ── Vault-only install (designers / product folks) ───────────────────────────
 
 ask_persona() {
+  # non-interactive shell (piped input, CI) — skip prompt, default to vault-only
+  if [ ! -t 0 ]; then
+    echo "  Non-interactive shell — defaulting to vault-only."
+    echo ""
+    return 0
+  fi
+
   echo ""
   echo "  Looks like gh CLI isn't set up. Quick question:"
   echo ""
@@ -561,6 +568,12 @@ case "${1:-}" in
       name="$(basename "$f")"
       ln -sf "$f" ~/.claude/hooks/"$name"
       chmod +x "$f"
+      echo "    ~> ~/.claude/hooks/$name"
+    done
+    # symlink supporting config files alongside the hooks
+    for f in "$REPO_DIR/hooks/"*.json; do
+      name="$(basename "$f")"
+      ln -sf "$f" ~/.claude/hooks/"$name"
       echo "    ~> ~/.claude/hooks/$name"
     done
 
