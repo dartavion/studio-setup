@@ -16,6 +16,118 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ── Step 1: tamper detection ───────────────────────────────────────────
+      # Re-download current pinned versions and compare against stored checksums.
+      # A mismatch here means a release binary was replaced — potential attack.
+      - name: Tamper detection — verify pinned versions
+        id: tamper
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import json, subprocess, hashlib, os, urllib.request
+
+          with open("versions.lock") as f:
+              lock = json.load(f)
+
+          stored = {}
+          with open("checksums.sha256") as f:
+              for line in f:
+                  line = line.strip()
+                  if line and not line.startswith("#") and "=" in line:
+                      k, v = line.split("=", 1)
+                      stored[k] = v
+
+          repos = {
+            "calendar":                   "liamcain/obsidian-calendar-plugin",
+            "codeblock-customizer":       "mugiwara85/CodeblockCustomizer",
+            "dataview":                   "blacksmithgu/obsidian-dataview",
+            "homepage":                   "mirnovov/obsidian-homepage",
+            "obsidian-excalidraw-plugin": "zsviczian/obsidian-excalidraw-plugin",
+            "obsidian-icon-folder":       "FlorianWoelki/obsidian-iconize",
+            "obsidian-kanban":            "mgmeyers/obsidian-kanban",
+            "obsidian-style-settings":    "mgmeyers/obsidian-style-settings",
+            "periodic-notes":             "liamcain/obsidian-periodic-notes",
+            "quickadd":                   "chhoumann/quickadd",
+            "smart-connections":          "brianpetro/obsidian-smart-connections",
+            "templater-obsidian":         "SilentVoid13/Templater",
+          }
+
+          tampered = []
+          for plugin_id, repo in repos.items():
+              version = lock["plugins"].get(plugin_id)
+              expected = stored.get(plugin_id)
+              if not version or not expected:
+                  continue
+
+              # fetch main.js for the pinned version
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/releases/tags/{version}",
+                   "-q", '.assets[] | select(.name == "main.js") | .browser_download_url'],
+                  capture_output=True, text=True
+              )
+              url = result.stdout.strip()
+              if not url:
+                  continue
+
+              data = urllib.request.urlopen(url).read()
+              actual = hashlib.sha256(data).hexdigest()
+
+              if actual != expected:
+                  tampered.append({
+                      "id": plugin_id,
+                      "version": version,
+                      "expected": expected,
+                      "actual": actual,
+                  })
+                  print(f"  !! TAMPER DETECTED: {plugin_id} @ {version}")
+                  print(f"     expected: {expected}")
+                  print(f"     actual:   {actual}")
+              else:
+                  print(f"  ok: {plugin_id} @ {version}")
+
+          has_tamper = len(tampered) > 0
+          tamper_detail = "\n".join(
+              f"- **{t['id']}** `{t['version']}`\n  - stored:   `{t['expected']}`\n  - fetched:  `{t['actual']}`"
+              for t in tampered
+          ) if tampered else ""
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_tamper={'true' if has_tamper else 'false'}\n")
+              f.write("tamper_detail<<EOTAMPER\n")
+              f.write(tamper_detail + "\n")
+              f.write("EOTAMPER\n")
+          EOF
+
+      # If tamper detected: open a security issue immediately and fail the job
+      - name: Open security issue if tamper detected
+        if: steps.tamper.outputs.has_tamper == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "🚨 Supply chain alert: checksum mismatch on pinned plugin(s)" \
+            --label "security" \
+            --body "$(cat <<BODY
+          ## Checksum mismatch detected
+
+          The following plugin(s) produced a different SHA256 than what is stored in \`checksums.sha256\` for the **same pinned version**. This means the release binary was replaced after it was pinned — a potential supply chain attack.
+
+          ${{ steps.tamper.outputs.tamper_detail }}
+
+          ## Immediate actions
+          - [ ] Do NOT merge any plugin update PRs until this is resolved
+          - [ ] Check the plugin's GitHub release page for any tampering notices
+          - [ ] Report to the plugin maintainer
+          - [ ] If confirmed malicious, remove the plugin and rotate any secrets that may have been exposed
+
+          > This issue was opened automatically by the weekly plugin update workflow.
+          BODY
+          )"
+          echo "::error::Checksum mismatch detected — possible supply chain attack. See the security issue just opened."
+          exit 1
+
+      # ── Step 2: check for version updates ─────────────────────────────────
       - name: Check for version updates
         id: check
         env:
@@ -51,29 +163,29 @@ jobs:
               latest = result.stdout.strip()
               pinned = lock["plugins"].get(plugin_id, "")
               if latest and latest != pinned:
-                  updates.append(f"{plugin_id}: {pinned} → {latest}")
+                  updates.append(f"| `{plugin_id}` | `{pinned}` | `{latest}` |")
                   print(f"  update: {plugin_id} {pinned} → {latest}")
               else:
                   print(f"  ok:     {plugin_id} @ {pinned}")
 
           has_updates = len(updates) > 0
-          summary = "\n".join(updates) if updates else "All plugins up to date."
+          table = "| Plugin | From | To |\n|--------|------|----|\n" + "\n".join(updates) if updates else "_All plugins up to date._"
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"has_updates={'true' if has_updates else 'false'}\n")
-              # multiline output
-              f.write("summary<<EOSUMMARY\n")
-              f.write(summary + "\n")
-              f.write("EOSUMMARY\n")
+              f.write("table<<EOTABLE\n")
+              f.write(table + "\n")
+              f.write("EOTABLE\n")
           EOF
 
+      # ── Step 3: update lockfile and open PR ───────────────────────────────
       - name: Update lockfile and checksums
         if: steps.check.outputs.has_updates == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: ./install.sh --update-lock
 
-      - name: Check for existing PR
+      - name: Check for existing update PR
         if: steps.check.outputs.has_updates == 'true'
         id: existing_pr
         env:
@@ -101,14 +213,15 @@ jobs:
             --body "$(cat <<PRBODY
           ## Plugin updates
 
-          ${{ steps.check.outputs.summary }}
+          ${{ steps.check.outputs.table }}
 
           ## Review checklist
           - [ ] Check release notes for each updated plugin
-          - [ ] No unexpected checksum changes
-          - [ ] Re-run \`./install.sh --plugins\` locally to verify
+          - [ ] Checksums look as expected (no suspicious binary sizes or unexpected changes)
+          - [ ] Run \`./install.sh --plugins\` locally to verify before merging
 
-          > Merge to approve. Team members get the updates on next \`git pull && ./install.sh --plugins\`.
+          > Tamper detection passed for all **current** pinned versions before this PR was opened.
+          > Merge to approve. Team members get updates on next \`git pull && ./install.sh --plugins\`.
           PRBODY
           )" \
             --base main
