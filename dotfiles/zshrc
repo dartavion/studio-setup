@@ -46,15 +46,23 @@ if command -v eza &>/dev/null; then
   alias tree='eza --tree --icons'
 fi
 
-# bat: better cat
+# bat: better cat (Ubuntu/WSL installs as batcat)
 if command -v bat &>/dev/null; then
   alias cat='bat --style=plain --pager=never'
+  export BAT_THEME="Catppuccin Mocha"
+elif command -v batcat &>/dev/null; then
+  alias bat='batcat'
+  alias cat='batcat --style=plain --pager=never'
   export BAT_THEME="Catppuccin Mocha"
 fi
 
 # fzf
 [ -f "$HOME/.fzf.zsh" ] && source "$HOME/.fzf.zsh"
-export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+# fd: Ubuntu/WSL installs as fdfind
+if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
+  alias fd='fdfind'
+fi
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git 2>/dev/null || fdfind --type f --hidden --follow --exclude .git 2>/dev/null || find . -type f'
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_DEFAULT_OPTS="
   --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8

@@ -140,11 +140,140 @@ update_lock() {
   echo "==> Lock updated. Review the diff, then commit versions.lock and checksums.sha256."
 }
 
+# ── Detect environment ────────────────────────────────────────────────────────
+
+is_wsl() {
+  [ -f /proc/version ] && grep -qi "microsoft" /proc/version
+}
+
 # ── Full install ──────────────────────────────────────────────────────────────
 
 full_install() {
   echo "==> studio-setup full install"
 
+  if is_wsl; then
+    echo "  detected: WSL"
+    full_install_wsl
+  else
+    full_install_macos
+  fi
+}
+
+full_install_wsl() {
+  echo "  updating apt..."
+  sudo apt-get update -qq
+
+  apt_install() {
+    local pkg="$1"
+    if ! dpkg -s "$pkg" &>/dev/null; then
+      echo "  installing $pkg..."
+      sudo apt-get install -y "$pkg"
+    else
+      echo "  $pkg ok"
+    fi
+  }
+
+  apt_install zsh
+  apt_install curl
+  apt_install git
+  apt_install neovim
+  apt_install fzf
+  apt_install bat         # installs as batcat on Ubuntu — zshrc handles alias
+  apt_install fd-find     # installs as fdfind on Ubuntu — zshrc handles alias
+  apt_install ripgrep
+  apt_install unzip
+
+  if ! command -v node &>/dev/null; then
+    echo "  installing Node.js via nvm..."
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+    export NVM_DIR="$HOME/.nvm"
+    source "$NVM_DIR/nvm.sh"
+    nvm install --lts
+  else
+    echo "  node ok"
+  fi
+
+  if ! command -v gh &>/dev/null; then
+    echo "  installing gh CLI..."
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    sudo apt-get update -qq && sudo apt-get install -y gh
+  else
+    echo "  gh ok"
+  fi
+
+  if ! command -v starship &>/dev/null; then
+    echo "  installing starship..."
+    curl -sS https://starship.rs/install.sh | sh -s -- --yes
+  else
+    echo "  starship ok"
+  fi
+
+  if ! command -v eza &>/dev/null; then
+    echo "  installing eza..."
+    curl -sL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
+      | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
+    echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
+      | sudo tee /etc/apt/sources.list.d/gierens.list > /dev/null
+    sudo chmod 644 /etc/apt/keyrings/gierens.gpg /etc/apt/sources.list.d/gierens.list
+    sudo apt-get update -qq && sudo apt-get install -y eza
+  else
+    echo "  eza ok"
+  fi
+
+  if ! command -v zoxide &>/dev/null; then
+    echo "  installing zoxide..."
+    curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+  else
+    echo "  zoxide ok"
+  fi
+
+  if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo ""
+    echo "  WSL note: set zsh as default shell with:"
+    echo "    chsh -s \$(which zsh)"
+    echo "  Then install oh-my-zsh manually (requires interactive shell):"
+    echo '    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+    echo ""
+  fi
+
+  if ! command -v claude &>/dev/null; then
+    echo "  installing Claude Code..."
+    npm install -g --ignore-scripts @anthropic-ai/claude-code
+  else
+    echo "  claude ok"
+  fi
+
+  if ! gh auth status &>/dev/null; then
+    echo ""
+    echo "  gh is not authenticated. Run: gh auth login"
+    echo "  Then re-run: $0 --full"
+    exit 1
+  fi
+
+  bash "$0"
+  install_plugins "$BASE_VAULT"
+
+  echo ""
+  echo "==> All done (WSL)."
+  echo ""
+  echo "  Manual steps remaining:"
+  echo ""
+  if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "  1. Install oh-my-zsh:"
+    echo '     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+    echo ""
+  fi
+  echo "  Open Obsidian on the Windows side → Add Vault → select vault/"
+  echo "  Settings → Community plugins → click 'Trust' for each plugin"
+  echo ""
+  echo "  Note: WezTerm and Obsidian run on Windows, not inside WSL."
+  echo "  From WezTerm, open a WSL tab: New Tab → Ubuntu (or your distro)"
+}
+
+full_install_macos() {
   # ── Homebrew ────────────────────────────────────────────────────────────────
   if ! command -v brew &>/dev/null; then
     echo "  installing Homebrew..."

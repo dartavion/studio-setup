@@ -170,7 +170,62 @@ The vault includes `CLAUDE.md` — when Claude Code reads your vault it automati
 
 ## Windows
 
-Use `install.ps1` in place of `install.sh`. Hook entries in `~/.claude/settings.json` require `"shell": "powershell"`.
+There are two supported paths on Windows — choose one or run both.
+
+### Option A: WSL (recommended for engineers)
+
+WSL gives you the full Linux toolchain (zsh, oh-my-zsh, eza, bat, starship, Neovim) with WezTerm and Obsidian running natively on the Windows side.
+
+**Prerequisites:** [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) with Ubuntu, [WezTerm for Windows](https://wezfurlong.org/wezterm/), [Obsidian for Windows](https://obsidian.md).
+
+```bash
+# Inside your WSL Ubuntu terminal:
+git clone git@github.com:dartavion/studio-setup.git
+cd studio-setup
+./install.sh --full
+```
+
+The script detects WSL automatically and switches to `apt` + curl installers instead of Homebrew. WezTerm and Obsidian are skipped (they run on the Windows side). Open a WezTerm tab pointing at your WSL distro to get the full shell experience.
+
+**`batcat` / `fdfind`:** Ubuntu packages these utilities under different names. The zshrc handles this automatically — `cat` and `fd` work as expected.
+
+**oh-my-zsh:** Same manual step as macOS — run the curl installer once in a zsh session, then the symlinked `.zshrc` takes over.
+
+### Option B: PowerShell native
+
+Full Windows-native setup using winget (GUI apps) and Scoop (CLI tools).
+
+**Prerequisites:** Windows 10/11 with winget. Run in PowerShell 7 (`pwsh`), not Windows PowerShell 5.
+
+```powershell
+git clone git@github.com:dartavion/studio-setup.git
+cd studio-setup
+.\install.ps1 -Full
+```
+
+**What gets installed:**
+- WezTerm, Obsidian, Node.js via winget
+- Neovim, starship, eza, bat, fzf, fd, zoxide, JetBrainsMono NF via Scoop
+- Claude Code via npm (`--ignore-scripts`)
+- PSFzf module for fzf key bindings in PowerShell
+
+**Dotfiles wired:**
+- `$PROFILE` → `dotfiles/powershell/profile.ps1`
+- `~\.config\starship.toml` → `dotfiles/starship.toml`
+- `~\AppData\Local\nvim\init.lua` → `dotfiles/nvim/init.lua`
+- `profile.local.ps1` seeded from template in the same folder as `$PROFILE`
+
+Uses symlinks where Developer Mode is enabled; falls back to copying otherwise.
+
+### AI on Windows
+
+Claude Code works identically on both paths — same `claude` CLI, same hooks. On the PowerShell path, hooks run as `.ps1` files with `"shell": "powershell"` in `settings.json`. On WSL, hooks run as `.sh` files exactly as on macOS.
+
+`--update-lock` (regenerating plugin checksums) requires Python 3 and is not ported to PowerShell. On a Windows-only machine run it via WSL:
+
+```powershell
+wsl ./install.sh --update-lock
+```
 
 ---
 
