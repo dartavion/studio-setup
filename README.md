@@ -203,4 +203,53 @@ Or trigger the workflow from the GitHub Actions tab.
 
 ## Dotfiles
 
-Coming soon.
+`install.sh` symlinks all dotfiles into place and backs up any existing files it would overwrite (e.g. `~/.zshrc.bak.20260608120000`).
+
+| File | Symlinked to |
+|------|-------------|
+| `dotfiles/zshrc` | `~/.zshrc` |
+| `dotfiles/starship.toml` | `~/.config/starship.toml` |
+| `dotfiles/nvim/init.lua` | `~/.config/nvim/init.lua` |
+
+`dotfiles/zshrc.local.template` is copied to `~/.zshrc.local` on first install (never overwritten after that). Put machine-specific env vars, secrets, and PATH additions there — it is never committed.
+
+### What's configured
+
+**Shell (`zshrc`)**
+- oh-my-zsh with `zsh-autosuggestions` and `zsh-syntax-highlighting`
+- `eza` (better `ls`), `bat` (better `cat`), `zoxide` (better `cd`), `fzf`
+- NVM, pyenv, pnpm wired up via `$HOME` paths (no hardcoded usernames)
+- Starship prompt (must be last — overrides oh-my-zsh theme)
+
+**Prompt (`starship.toml`)**
+- Catppuccin Mocha palette — matches Neovim and Obsidian
+- Shows: directory, git branch + status, Node/Python/Go/Rust versions when in-project, command duration, time
+
+**Editor (`nvim/init.lua`)**
+- [lazy.nvim](https://github.com/folke/lazy.nvim) plugin manager, auto-installs on first launch
+- Catppuccin Mocha colorscheme
+- [mason.nvim](https://github.com/williamboman/mason.nvim) — auto-installs LSP servers (TS, Python, Go, Rust, CSS, HTML, JSON, YAML)
+- Telescope fuzzy finder (`<leader>ff/fg/fb/fr`)
+- nvim-tree file explorer (`<leader>e`)
+- Treesitter highlighting, nvim-cmp autocompletion, conform.nvim format-on-save
+- Gitsigns, Neogit (`<leader>gg`), which-key, indent guides, markdown preview
+
+### Machine-specific config
+
+Copy the template and fill in what applies:
+
+```bash
+cp dotfiles/zshrc.local.template ~/.zshrc.local
+```
+
+Typical entries: `GOOGLE_CLOUD_PROJECT`, API keys, corporate proxy, Android SDK path. See the template for a full reference.
+
+### oh-my-zsh
+
+oh-my-zsh is not installed by `install.sh --full` because it requires an interactive shell prompt during install. Run it once manually:
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+Then open a new shell — the symlinked `~/.zshrc` takes over.

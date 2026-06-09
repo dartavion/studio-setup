@@ -1,0 +1,40 @@
+## ~/.zshrc.local
+##
+## Machine-specific shell configuration.
+## Copy this file to ~/.zshrc.local and fill in what applies to your machine.
+## This file is sourced at the end of ~/.zshrc and is never committed to git.
+
+## ── PATH additions ───────────────────────────────────────────────────────────
+
+# export PATH="/opt/some-tool/bin:$PATH"
+
+## ── work secrets and tokens ──────────────────────────────────────────────────
+
+# Never commit tokens or API keys — put them here or in a secrets manager
+# export ANTHROPIC_API_KEY="sk-ant-..."
+# export GITHUB_TOKEN="ghp_..."
+# export OPENAI_API_KEY="sk-..."
+
+## ── cloud and infrastructure ─────────────────────────────────────────────────
+
+# export GOOGLE_CLOUD_PROJECT="my-project-id"
+# export GOOGLE_CLOUD_LOCATION="us-central1"
+# export GOOGLE_APPLICATION_CREDENTIALS="$HOME/.config/gcloud/application_default_credentials.json"
+# export AWS_PROFILE="my-profile"
+# export AWS_DEFAULT_REGION="us-east-1"
+
+## ── proxy settings (if behind a corporate proxy) ─────────────────────────────
+
+# export HTTP_PROXY="http://proxy.example.com:8080"
+# export HTTPS_PROXY="http://proxy.example.com:8080"
+# export NO_PROXY="localhost,127.0.0.1,.internal"
+# export NODE_EXTRA_CA_CERTS="/path/to/corporate-ca.pem"
+
+## ── mobile / native SDKs ─────────────────────────────────────────────────────
+
+# export ANDROID_HOME="$HOME/Library/Android/sdk"
+# export PATH="$ANDROID_HOME/emulator:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools:$PATH"
+
+## ── local aliases and functions ──────────────────────────────────────────────
+
+# alias work='cd ~/Developer/my-company'

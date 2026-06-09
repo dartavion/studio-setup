@@ -1,0 +1,105 @@
+## Starship prompt — Catppuccin Mocha palette
+## https://starship.rs/config/
+
+"$schema" = 'https://starship.rs/config-schema.json'
+
+format = """
+$directory\
+$git_branch\
+$git_status\
+$nodejs\
+$python\
+$golang\
+$rust\
+$docker_context\
+$fill\
+$cmd_duration\
+$time\
+$line_break\
+$character"""
+
+## ── directory ────────────────────────────────────────────────────────────────
+
+[directory]
+style = "bold #89b4fa"         # blue
+truncation_length = 3
+truncate_to_repo = true
+format = "[$path]($style)[$read_only]($read_only_style) "
+
+[directory.substitutions]
+"~/Developer" = " dev"
+"~/Documents" = " docs"
+"~"           = " ~"
+
+## ── git ──────────────────────────────────────────────────────────────────────
+
+[git_branch]
+symbol = " "
+style  = "bold #cba6f7"        # mauve
+format = "on [$symbol$branch]($style) "
+
+[git_status]
+style          = "#f38ba8"     # red
+conflicted     = "✖"
+ahead          = "⇡${count}"
+behind         = "⇣${count}"
+diverged       = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked      = "?"
+stashed        = "$"
+modified       = "!"
+staged         = "+"
+renamed        = "»"
+deleted        = "✘"
+format         = "([$all_status$ahead_behind]($style) )"
+
+## ── runtimes ─────────────────────────────────────────────────────────────────
+
+[nodejs]
+symbol = " "
+style  = "#a6e3a1"             # green
+format = "[$symbol($version )]($style)"
+
+[python]
+symbol         = " "
+style          = "#f9e2af"     # yellow
+pyenv_version_name = true
+format         = "[$symbol$pyenv_prefix($version )(\($virtualenv\) )]($style)"
+
+[golang]
+symbol = " "
+style  = "#89dceb"             # sky
+format = "[$symbol($version )]($style)"
+
+[rust]
+symbol = " "
+style  = "#fab387"             # peach
+format = "[$symbol($version )]($style)"
+
+[docker_context]
+symbol = " "
+style  = "#89b4fa"             # blue
+format = "[$symbol$context]($style) "
+only_with_files = true
+
+## ── right side ───────────────────────────────────────────────────────────────
+
+[fill]
+symbol = " "
+
+[cmd_duration]
+min_time   = 2_000
+style      = "#6c7086"         # overlay1
+format     = "[$duration]($style) "
+
+[time]
+disabled  = false
+style     = "#6c7086"          # overlay1
+format    = "[$time]($style)"
+time_format = "%H:%M"
+
+## ── prompt character ─────────────────────────────────────────────────────────
+
+[character]
+success_symbol = "[❯](bold #a6e3a1)"   # green
+error_symbol   = "[❯](bold #f38ba8)"   # red
+vimcmd_symbol  = "[❮](bold #cba6f7)"   # mauve (normal mode)

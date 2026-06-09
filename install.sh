@@ -178,6 +178,15 @@ full_install() {
   install_cask    "JetBrains Mono NF" "font-jetbrains-mono-nerd-font"
   install_formula "gh"
   install_formula "node"
+  install_formula "neovim"
+  install_formula "starship"
+  install_formula "eza"
+  install_formula "bat"
+  install_formula "fzf"
+  install_formula "fd"
+  install_formula "zoxide"
+  install_formula "zsh-autosuggestions"
+  install_formula "zsh-syntax-highlighting"
 
   if ! command -v claude &>/dev/null; then
     echo "  installing Claude Code..."
@@ -199,9 +208,20 @@ full_install() {
   echo ""
   echo "==> All done."
   echo ""
-  echo "  One manual step remaining:"
-  echo "  1. Open Obsidian → Add Vault → select $(pwd)/vault"
-  echo "  2. Settings → Community plugins → click 'Trust' for each plugin"
+
+  local step=1
+  if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "  Manual steps required:"
+    echo ""
+    echo "  $step. Install oh-my-zsh (requires an interactive shell — can't be scripted):"
+    echo '     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
+    echo "     Then open a new shell — ~/.zshrc is already symlinked and takes over."
+    step=$((step + 1))
+  fi
+
+  echo "  $step. Open Obsidian → Add Vault → select $(pwd)/vault"
+  step=$((step + 1))
+  echo "  $step. Settings → Community plugins → click 'Trust' for each plugin"
   echo ""
   echo "  Dashboard opens automatically and KPI cards render on first load."
 }
@@ -270,7 +290,40 @@ case "${1:-}" in
     done
 
     # ── Dotfiles ─────────────────────────────────────────────────────────
-    # TODO: symlink dotfiles
+
+    echo "  dotfiles"
+
+    # zshrc — back up existing, then symlink
+    if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
+      cp "$HOME/.zshrc" "$HOME/.zshrc.bak.$(date +%Y%m%d%H%M%S)"
+      echo "    backed up existing ~/.zshrc"
+    fi
+    ln -sf "$REPO_DIR/dotfiles/zshrc" "$HOME/.zshrc"
+    echo "    ~> ~/.zshrc"
+
+    # starship prompt
+    mkdir -p "$HOME/.config"
+    if [ -f "$HOME/.config/starship.toml" ] && [ ! -L "$HOME/.config/starship.toml" ]; then
+      cp "$HOME/.config/starship.toml" "$HOME/.config/starship.toml.bak.$(date +%Y%m%d%H%M%S)"
+      echo "    backed up existing ~/.config/starship.toml"
+    fi
+    ln -sf "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
+    echo "    ~> ~/.config/starship.toml"
+
+    # neovim config
+    mkdir -p "$HOME/.config/nvim"
+    if [ -f "$HOME/.config/nvim/init.lua" ] && [ ! -L "$HOME/.config/nvim/init.lua" ]; then
+      cp "$HOME/.config/nvim/init.lua" "$HOME/.config/nvim/init.lua.bak.$(date +%Y%m%d%H%M%S)"
+      echo "    backed up existing ~/.config/nvim/init.lua"
+    fi
+    ln -sf "$REPO_DIR/dotfiles/nvim/init.lua" "$HOME/.config/nvim/init.lua"
+    echo "    ~> ~/.config/nvim/init.lua"
+
+    # seed ~/.zshrc.local from template if none exists
+    if [ ! -f "$HOME/.zshrc.local" ]; then
+      cp "$REPO_DIR/dotfiles/zshrc.local.template" "$HOME/.zshrc.local"
+      echo "    created ~/.zshrc.local from template"
+    fi
 
     echo "  claude hooks"
     mkdir -p ~/.claude/hooks
