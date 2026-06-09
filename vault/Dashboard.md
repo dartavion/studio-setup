@@ -34,9 +34,9 @@ const render = async () => {
   const pct = n => n != null ? `${n}%` : "—";
 
   const delta = (d, invert = false) => {
-    if (d == null) return "";
+    if (d == null || d === 0) return "";
     const good = invert ? d < 0 : d > 0;
-    const cls = good ? "kpi-up" : d === 0 ? "" : "kpi-down";
+    const cls = good ? "kpi-up" : "kpi-down";
     const arrow = d > 0 ? "▲" : "▼";
     return `<span class="${cls}">${arrow} ${Math.abs(d)}%</span>`;
   };

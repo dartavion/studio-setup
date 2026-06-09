@@ -181,10 +181,9 @@ Seed a new project vault from the base:
 
 ```bash
 ./install.sh --vault ~/Developer/my-project/vault
-./install.sh --plugins ~/Developer/my-project/vault
 ```
 
-Open `my-project/vault/` in Obsidian and customise freely. The base vault is never affected.
+Plugins are downloaded automatically as part of `--vault`. Open `my-project/vault/` in Obsidian and customise freely. The base vault is never affected.
 
 ---
 

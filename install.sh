@@ -86,8 +86,9 @@ download_asset() {
     url=$(gh api "repos/$repo/releases/tags/$version" \
       -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
     if [ -n "$url" ]; then
-      curl -sL "$url" -o "$dest"
-      return 0
+      if curl -fsL "$url" -o "$dest" 2>/dev/null; then
+        return 0
+      fi
     fi
   fi
 
@@ -111,6 +112,8 @@ install_plugins() {
         if [ "$asset" = "main.js" ]; then
           verify_checksum "$id" "$dest"
         fi
+      elif [ "$asset" = "main.js" ]; then
+        echo "  warning: $id main.js download failed — plugin will not load"
       fi
     done
   done
@@ -120,8 +123,14 @@ install_plugins() {
   if [ ! -f "$theme_dir/theme.css" ]; then
     echo "  Catppuccin theme"
     mkdir -p "$theme_dir"
-    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"     -o "$theme_dir/theme.css"
-    curl -sL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json"  -o "$theme_dir/manifest.json"
+    if curl -fsL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css" \
+          -o "$theme_dir/theme.css" 2>/dev/null && \
+       curl -fsL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" \
+          -o "$theme_dir/manifest.json" 2>/dev/null; then
+      echo "  Catppuccin theme ok"
+    else
+      echo "  warning: Catppuccin theme download failed — vault will open without theme"
+    fi
   fi
 
   echo "==> plugins installed and verified"
@@ -159,6 +168,13 @@ update_lock() {
   done
   versions_json+="}}"
   echo "$versions_json" | python3 -m json.tool > "$LOCK_FILE"
+
+  # Wipe existing main.js files so stale copies can't be checksummed on download failure
+  shopt -s nullglob
+  for dir in "$BASE_VAULT/.obsidian/plugins"/*/; do
+    rm -f "$dir/main.js"
+  done
+  shopt -u nullglob
 
   # Re-download and recompute checksums
   install_plugins "$BASE_VAULT"
@@ -251,6 +267,7 @@ full_install_wsl() {
 
   if ! command -v eza &>/dev/null; then
     echo "  installing eza..."
+    sudo install -m 0755 -d /etc/apt/keyrings
     curl -sL https://raw.githubusercontent.com/eza-community/eza/main/deb.asc \
       | sudo gpg --dearmor -o /etc/apt/keyrings/gierens.gpg
     echo "deb [signed-by=/etc/apt/keyrings/gierens.gpg] http://deb.gierens.de stable main" \
@@ -433,7 +450,7 @@ seed_vault() {
   [ ! -f "$target/reports/kpi-snapshot.json" ] && \
     cp "$BASE_VAULT/reports/kpi-snapshot.json" "$target/reports/kpi-snapshot.json" && echo "  + reports/kpi-snapshot.json"
 
-  echo "==> seeded — run: $0 --plugins $target"
+  install_plugins "$target"
 }
 
 # ── Vault-only install (designers / product folks) ───────────────────────────

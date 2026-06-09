@@ -142,8 +142,12 @@ function Install-Plugins($vaultPath) {
     if (-not (Test-Path (Join-Path $themeDir "theme.css"))) {
         Write-Host "  Catppuccin theme"
         New-Item -ItemType Directory -Path $themeDir -Force | Out-Null
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"    -OutFile (Join-Path $themeDir "theme.css")    -UseBasicParsing
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" -OutFile (Join-Path $themeDir "manifest.json") -UseBasicParsing
+        try {
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css"    -OutFile (Join-Path $themeDir "theme.css")    -UseBasicParsing -ErrorAction Stop
+            Invoke-WebRequest -Uri "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" -OutFile (Join-Path $themeDir "manifest.json") -UseBasicParsing -ErrorAction Stop
+        } catch {
+            Write-Host "  warning: Catppuccin theme download failed — vault will open without theme"
+        }
     }
 
     Write-Host "==> plugins installed and verified"
@@ -288,7 +292,7 @@ function Invoke-SeedVault($targetPath) {
         Write-Host "  + reports\kpi-snapshot.json"
     }
 
-    Write-Host "==> seeded — run: .\install.ps1 -Plugins -Vault $targetPath"
+    Install-Plugins $targetPath
 }
 
 # ── base install (wezterm + dotfiles + hooks) ─────────────────────────────────
