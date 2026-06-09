@@ -131,7 +131,19 @@ install_plugins() {
 
 update_lock() {
   echo "==> Updating versions.lock and checksums.sha256"
-  echo "    Review all version changes before committing."
+  echo ""
+  echo "  SECURITY NOTICE"
+  echo "  This command downloads new plugin binaries and recomputes their checksums"
+  echo "  from what it just downloaded. It trusts the download implicitly."
+  echo "  If those binaries were tampered with, the new checksums would verify them."
+  echo ""
+  echo "  Before committing:"
+  echo "    - Use a trusted network (not public Wi-Fi)"
+  echo "    - Review: git diff versions.lock checksums.sha256"
+  echo "    - Only versions.lock and checksums.sha256 should change"
+  echo "    - Prefer opening a PR over pushing directly to main"
+  echo "    - Consider triggering the GitHub Actions workflow instead —"
+  echo "      it runs tamper detection before updating anything"
   echo ""
 
   local versions_json='{"plugins":{'

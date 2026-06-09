@@ -267,28 +267,45 @@ wsl ./install.sh --update-lock
 
 ## Security
 
-Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install.
+Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install with a clear error.
 
 The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks.
 
 ### Keeping plugins updated
 
-A GitHub Actions workflow runs every Monday at 9am UTC. If any plugin has a newer release it opens a PR with:
-- Updated `versions.lock` and `checksums.sha256`
-- A summary of which plugins changed and from what version
-- A review checklist before merging
+**The preferred path is the GitHub Actions workflow**, not `--update-lock` locally. The workflow runs every Monday at 9am UTC and is explicitly two-phase:
 
-Merging the PR is the explicit approval step. Team members get the updates on next `git pull && ./install.sh --plugins`.
+1. **Tamper detection first** — re-downloads the currently pinned binaries and compares their SHA256 against `checksums.sha256`. A mismatch means a release binary was silently replaced after it was pinned — a supply chain attack. The job opens a security issue and exits 1, blocking any PR from being opened.
+2. **Version check second** — only if tamper detection passes does it look for newer releases and open a PR.
 
-To trigger an update manually:
+Merging the PR is the explicit human approval step. Team members get updates on next `git pull && ./install.sh --plugins`.
+
+### Running `--update-lock` locally
+
+> **Security notice:** `--update-lock` downloads new plugin binaries and recomputes their checksums from what it just downloaded. This means it inherently trusts the download. If those binaries were tampered with, the new checksums would "verify" the compromised files — and you'd commit the attack into the repo.
+
+When you do need to run it locally:
+
+- **Use a trusted network.** Never run it on public Wi-Fi or an untrusted connection.
+- **Review the diff before committing.** Only `versions.lock` and `checksums.sha256` should change. Plugin binaries (`main.js`, `styles.css`) are gitignored and must not be committed.
+- **Prefer opening a PR** rather than pushing directly to main, so a second pair of eyes can review.
+- **When in doubt, trigger the GitHub Actions workflow instead** — it has the tamper detection step that the local command does not.
 
 ```bash
-./install.sh --update-lock   # updates locally
-# review: git diff versions.lock checksums.sha256
-# then commit and push, or open a PR
+./install.sh --update-lock
+
+# Audit the diff — only these two files should change:
+git diff versions.lock checksums.sha256
+
+# Open a PR rather than pushing directly:
+git checkout -b chore/update-plugins
+git add versions.lock checksums.sha256
+git commit -m "chore: update plugin versions $(date +%Y-%m-%d)"
+git push -u origin chore/update-plugins
+gh pr create
 ```
 
-Or trigger the workflow from the GitHub Actions tab.
+Or trigger the workflow directly from the GitHub Actions tab — no local changes needed.
 
 ---
 
