@@ -25,7 +25,7 @@ Dev environment kit for designers, engineers, and AI builders.
 
 ### Designers and product folks — just Obsidian
 
-Two prerequisites: [Obsidian](https://obsidian.md) and the [gh CLI](https://cli.github.com) (authenticated).
+One prerequisite: [Obsidian](https://obsidian.md). That's it — no `gh` CLI, no authentication needed.
 
 ```bash
 git clone git@github.com:dartavion/studio-setup.git
@@ -34,7 +34,7 @@ cd studio-setup
 .\install.ps1 -VaultOnly         # Windows PowerShell
 ```
 
-That's it. The script downloads all plugins at pinned, verified versions. Then:
+The script downloads all plugins directly from GitHub releases (no auth required) at pinned, verified versions. Then:
 
 1. Open Obsidian → **Add Vault** → select the `vault/` folder
 2. Settings → Community plugins → click **Trust** for each plugin

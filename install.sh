@@ -62,6 +62,38 @@ PLUGIN_IDS=(
   "codeblock-customizer:mugiwara85/CodeblockCustomizer"
 )
 
+gh_available() {
+  command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1
+}
+
+# Download a single release asset.
+# Tries the direct GitHub URL first (no auth needed).
+# Falls back to gh api for repos with non-standard asset layouts.
+download_asset() {
+  local repo="$1" version="$2" asset="$3" dest="$4"
+
+  local direct="https://github.com/$repo/releases/download/$version/$asset"
+  if curl -fsL "$direct" -o "$dest" 2>/dev/null; then
+    return 0
+  fi
+
+  if gh_available; then
+    local url
+    url=$(gh api "repos/$repo/releases/tags/$version" \
+      -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
+    if [ -z "$url" ]; then
+      url=$(gh api "repos/$repo/releases/latest" \
+        -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
+    fi
+    if [ -n "$url" ]; then
+      curl -sL "$url" -o "$dest"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
 install_plugins() {
   local target="$1/.obsidian"
   echo "==> Installing plugins into $target"
@@ -74,19 +106,10 @@ install_plugins() {
     echo "  $id @ $version"
 
     for asset in main.js manifest.json styles.css; do
-      local url
-      url=$(gh api "repos/$repo/releases/tags/$version" \
-        -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
-      # fall back to latest if pinned tag has no release assets (e.g. beta tags)
-      if [ -z "$url" ]; then
-        url=$(gh api "repos/$repo/releases/latest" \
-          -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
-      fi
-      if [ -n "$url" ]; then
-        curl -sL "$url" -o "$target/plugins/$id/$asset"
-        # verify checksum for main.js only
+      local dest="$target/plugins/$id/$asset"
+      if download_asset "$repo" "$version" "$asset" "$dest"; then
         if [ "$asset" = "main.js" ]; then
-          verify_checksum "$id" "$target/plugins/$id/$asset"
+          verify_checksum "$id" "$dest"
         fi
       fi
     done
@@ -398,21 +421,46 @@ seed_vault() {
 
 # ── Vault-only install (designers / product folks) ───────────────────────────
 
-vault_only() {
-  echo "==> studio-setup — Obsidian vault setup"
+ask_persona() {
+  echo ""
+  echo "  Looks like gh CLI isn't set up. Quick question:"
+  echo ""
+  echo "  [1] Designer / product — just want the Obsidian vault"
+  echo "  [2] Developer          — need the full dev environment"
+  echo ""
+  printf "  Your choice (1/2): "
+  local choice
+  read -r choice
   echo ""
 
-  if ! command -v gh &>/dev/null; then
-    echo "  gh CLI is required to download plugins."
-    echo "  Install it from https://cli.github.com, then run: gh auth login"
-    echo "  Re-run this script once authenticated."
-    exit 1
-  fi
+  case "$choice" in
+    1)
+      echo "  Designer path — downloading plugins directly (no gh needed)."
+      echo ""
+      ;;
+    2)
+      echo "  Developer path — gh CLI needed for the full setup."
+      echo ""
+      echo "  Install:      brew install gh      (macOS)"
+      echo "                sudo apt install gh  (Linux/WSL)"
+      echo "  Authenticate: gh auth login"
+      echo ""
+      echo "  Then re-run: $0 --full"
+      exit 0
+      ;;
+    *)
+      echo "  Not sure? Start with the vault (option 1) — you can always"
+      echo "  run $0 --full later to add dev tools."
+      echo ""
+      ;;
+  esac
+}
 
-  if ! gh auth status &>/dev/null; then
-    echo "  gh is not authenticated. Run: gh auth login"
-    echo "  Then re-run: $0 --vault-only"
-    exit 1
+vault_only() {
+  echo "==> studio-setup — Obsidian vault setup"
+
+  if ! gh_available; then
+    ask_persona
   fi
 
   install_plugins "$BASE_VAULT"
@@ -438,6 +486,14 @@ case "${1:-}" in
   --update-lock) update_lock ;;
   "")
     echo "==> studio-setup install"
+
+    if ! gh_available; then
+      ask_persona
+      # if we get here the user picked designer/product (or typed something else)
+      # route them to vault-only and stop
+      vault_only
+      exit 0
+    fi
 
     echo "  wezterm"
     mkdir -p ~/.config/wezterm/workspaces
