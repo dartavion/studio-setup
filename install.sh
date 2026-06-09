@@ -425,8 +425,8 @@ ask_persona() {
   echo ""
   echo "  Looks like gh CLI isn't set up. Quick question:"
   echo ""
-  echo "  [1] Designer / product — just want the Obsidian vault"
-  echo "  [2] Developer          — need the full dev environment"
+  echo "  [1] Developer          — need the full dev environment"
+  echo "  [2] Designer / product — just want the Obsidian vault"
   echo ""
   printf "  Your choice (1/2): "
   local choice
@@ -435,10 +435,6 @@ ask_persona() {
 
   case "$choice" in
     1)
-      echo "  Designer path — downloading plugins directly (no gh needed)."
-      echo ""
-      ;;
-    2)
       echo "  Developer path — gh CLI needed for the full setup."
       echo ""
       echo "  Install:      brew install gh      (macOS)"
@@ -448,8 +444,12 @@ ask_persona() {
       echo "  Then re-run: $0 --full"
       exit 0
       ;;
+    2)
+      echo "  Designer/product path — downloading plugins directly (no gh needed)."
+      echo ""
+      ;;
     *)
-      echo "  Not sure? Start with the vault (option 1) — you can always"
+      echo "  Not sure? Start with the vault (option 2) — you can always"
       echo "  run $0 --full later to add dev tools."
       echo ""
       ;;
