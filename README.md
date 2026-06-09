@@ -15,6 +15,14 @@ Dev environment kit for designers, engineers, and AI builders.
 
 ## Pick your path
 
+**Not sure which to choose?**
+
+- You live in Figma, Notion, or slides → **vault-only**. You get a structured Obsidian workspace with a KPI dashboard, project tracking, and daily notes. Nothing else touches your machine.
+- You write code every day → **full setup**. You get everything above plus a configured terminal, editor, and AI tooling that work together out of the box.
+- You're somewhere in between (e.g. a web engineer who doesn't use a terminal much yet) → start with vault-only. You can run `./install.sh --full` later and it picks up where vault-only left off without overwriting anything.
+
+---
+
 ### Designers and product folks — just Obsidian
 
 Two prerequisites: [Obsidian](https://obsidian.md) and the [gh CLI](https://cli.github.com) (authenticated).
