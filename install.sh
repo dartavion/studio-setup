@@ -26,6 +26,7 @@ PLUGIN_IDS=(
   "obsidian-excalidraw-plugin:zsviczian/obsidian-excalidraw-plugin"
   "smart-connections:brianpetro/obsidian-smart-connections"
   "obsidian-icon-folder:FlorianWoelki/obsidian-iconize"
+  "codeblock-customizer:mugiwara85/CodeblockCustomizer"
 )
 
 install_plugins() {
