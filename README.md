@@ -180,13 +180,24 @@ Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in
 
 The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks.
 
-### Updating plugins
+### Keeping plugins updated
+
+A GitHub Actions workflow runs every Monday at 9am UTC. If any plugin has a newer release it opens a PR with:
+- Updated `versions.lock` and `checksums.sha256`
+- A summary of which plugins changed and from what version
+- A review checklist before merging
+
+Merging the PR is the explicit approval step. Team members get the updates on next `git pull && ./install.sh --plugins`.
+
+To trigger an update manually:
 
 ```bash
-./install.sh --update-lock
+./install.sh --update-lock   # updates locally
+# review: git diff versions.lock checksums.sha256
+# then commit and push, or open a PR
 ```
 
-This fetches the latest release for each plugin, re-downloads binaries, recomputes checksums, and updates both files. Review the diff before committing — you're explicitly approving the new versions.
+Or trigger the workflow from the GitHub Actions tab.
 
 ---
 

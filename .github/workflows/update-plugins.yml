@@ -1,0 +1,114 @@
+name: Update plugins
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'   # every Monday at 9am UTC
+  workflow_dispatch:        # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for version updates
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import json, subprocess, os
+
+          with open("versions.lock") as f:
+              lock = json.load(f)
+
+          repos = {
+            "calendar":                   "liamcain/obsidian-calendar-plugin",
+            "codeblock-customizer":       "mugiwara85/CodeblockCustomizer",
+            "dataview":                   "blacksmithgu/obsidian-dataview",
+            "homepage":                   "mirnovov/obsidian-homepage",
+            "obsidian-excalidraw-plugin": "zsviczian/obsidian-excalidraw-plugin",
+            "obsidian-icon-folder":       "FlorianWoelki/obsidian-iconize",
+            "obsidian-kanban":            "mgmeyers/obsidian-kanban",
+            "obsidian-style-settings":    "mgmeyers/obsidian-style-settings",
+            "periodic-notes":             "liamcain/obsidian-periodic-notes",
+            "quickadd":                   "chhoumann/quickadd",
+            "smart-connections":          "brianpetro/obsidian-smart-connections",
+            "templater-obsidian":         "SilentVoid13/Templater",
+          }
+
+          updates = []
+          for plugin_id, repo in repos.items():
+              result = subprocess.run(
+                  ["gh", "api", f"repos/{repo}/releases/latest", "-q", ".tag_name"],
+                  capture_output=True, text=True
+              )
+              latest = result.stdout.strip()
+              pinned = lock["plugins"].get(plugin_id, "")
+              if latest and latest != pinned:
+                  updates.append(f"{plugin_id}: {pinned} → {latest}")
+                  print(f"  update: {plugin_id} {pinned} → {latest}")
+              else:
+                  print(f"  ok:     {plugin_id} @ {pinned}")
+
+          has_updates = len(updates) > 0
+          summary = "\n".join(updates) if updates else "All plugins up to date."
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_updates={'true' if has_updates else 'false'}\n")
+              # multiline output
+              f.write("summary<<EOSUMMARY\n")
+              f.write(summary + "\n")
+              f.write("EOSUMMARY\n")
+          EOF
+
+      - name: Update lockfile and checksums
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./install.sh --update-lock
+
+      - name: Check for existing PR
+        if: steps.check.outputs.has_updates == 'true'
+        id: existing_pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          count=$(gh pr list --head "chore/update-plugins" --state open --json number -q 'length')
+          echo "open_prs=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and open PR
+        if: steps.check.outputs.has_updates == 'true' && steps.existing_pr.outputs.open_prs == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="chore/update-plugins-$(date +%Y-%m-%d)"
+          git checkout -b "$BRANCH"
+          git add versions.lock checksums.sha256
+          git commit -m "chore: update plugin versions $(date +%Y-%m-%d)"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "Update plugin versions $(date +%Y-%m-%d)" \
+            --body "$(cat <<PRBODY
+          ## Plugin updates
+
+          ${{ steps.check.outputs.summary }}
+
+          ## Review checklist
+          - [ ] Check release notes for each updated plugin
+          - [ ] No unexpected checksum changes
+          - [ ] Re-run \`./install.sh --plugins\` locally to verify
+
+          > Merge to approve. Team members get the updates on next \`git pull && ./install.sh --plugins\`.
+          PRBODY
+          )" \
+            --base main
