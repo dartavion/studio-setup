@@ -59,7 +59,7 @@ const render = async () => {
   dv.container.innerHTML = `
     <div class="kpi-dashboard">
       <div class="kpi-header">
-        <div class="kpi-meta">Window: ${k.window} · Data: ${k.updated_at.slice(0,10)}</div>
+        <div class="kpi-meta">Window: ${k.window ?? "—"} · Data: ${k.updated_at?.slice(0,10) ?? "—"}</div>
         <div class="kpi-actions">
           <span class="kpi-last-refreshed">Refreshed ${now}</span>
           <button class="kpi-refresh-btn">↻ Refresh</button>

@@ -269,9 +269,9 @@ wsl ./install.sh --update-lock
 
 ## Security
 
-Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install with a clear error.
+Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install with a clear error. `manifest.json` and `styles.css` are downloaded at the pinned version but are not checksum-verified; `manifest.json` is inert metadata and `styles.css` is display-only.
 
-The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks.
+The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks on that package.
 
 ### Keeping plugins updated
 

@@ -80,11 +80,13 @@ GF_DEPLOYS=0
 
 bq_query() {
   local sql="$1"
+  local body
+  body=$(jq -n --arg q "$sql" '{query: $q, useLegacySql: false, maxResults: 1}')
   curl -fsSL \
     -H "Authorization: Bearer $(gcloud auth print-access-token)" \
     -H "Content-Type: application/json" \
     "https://bigquery.googleapis.com/bigquery/v2/projects/$BIGQUERY_PROJECT/queries" \
-    -d "{\"query\": \"$sql\", \"useLegacySql\": false, \"maxResults\": 1}"
+    -d "$body"
 }
 
 BQ_CONVERSIONS=0

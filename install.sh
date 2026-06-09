@@ -21,7 +21,11 @@ usage() {
 
 pinned_version() {
   local id="$1"
-  python3 -c "import json,sys; d=json.load(open('$LOCK_FILE')); print(d['plugins'].get('$id','latest'))"
+  python3 - "$LOCK_FILE" "$id" <<'PYEOF'
+import json, sys
+d = json.load(open(sys.argv[1]))
+print(d['plugins'].get(sys.argv[2], 'latest'))
+PYEOF
 }
 
 stored_checksum() {
@@ -81,10 +85,6 @@ download_asset() {
     local url
     url=$(gh api "repos/$repo/releases/tags/$version" \
       -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
-    if [ -z "$url" ]; then
-      url=$(gh api "repos/$repo/releases/latest" \
-        -q ".assets[] | select(.name == \"$asset\") | .browser_download_url" 2>/dev/null || true)
-    fi
     if [ -n "$url" ]; then
       curl -sL "$url" -o "$dest"
       return 0
@@ -165,12 +165,14 @@ update_lock() {
 
   printf "# SHA256 checksums for plugin main.js files at pinned versions\n" > "$CHECKSUM_FILE"
   printf "# Regenerate with: ./install.sh --update-lock\n\n" >> "$CHECKSUM_FILE"
-  for dir in "$BASE_VAULT/.obsidian/plugins/"/*/; do
+  shopt -s nullglob
+  for dir in "$BASE_VAULT/.obsidian/plugins"/*/; do
     local id
     id="$(basename "$dir")"
     [ -f "$dir/main.js" ] && \
       echo "$id=$(shasum -a 256 "$dir/main.js" | awk '{print $1}')" >> "$CHECKSUM_FILE"
   done
+  shopt -u nullglob
 
   echo ""
   echo "==> Lock updated. Review the diff, then commit versions.lock and checksums.sha256."
@@ -352,6 +354,7 @@ full_install_macos() {
   install_formula "zoxide"
   install_formula "zsh-autosuggestions"
   install_formula "zsh-syntax-highlighting"
+  install_formula "ripgrep"
 
   if ! command -v claude &>/dev/null; then
     echo "  installing Claude Code..."
@@ -409,7 +412,8 @@ seed_vault() {
     [ ! -f "$target/.obsidian/snippets/$name" ] && cp "$f" "$target/.obsidian/snippets/$name" && echo "  + snippets/$name"
   done
 
-  for plugin_dir in "$BASE_VAULT/.obsidian/plugins/"/*/; do
+  shopt -s nullglob
+  for plugin_dir in "$BASE_VAULT/.obsidian/plugins"/*/; do
     plugin="$(basename "$plugin_dir")"
     mkdir -p "$target/.obsidian/plugins/$plugin"
     for f in data.json manifest.json; do
@@ -417,6 +421,7 @@ seed_vault() {
         cp "$plugin_dir$f" "$target/.obsidian/plugins/$plugin/$f" && echo "  + plugins/$plugin/$f"
     done
   done
+  shopt -u nullglob
 
   for f in "$BASE_VAULT/00-Meta/Templates/"*.md; do
     name="$(basename "$f")"

@@ -22,11 +22,17 @@ fmt_usd() {
   awk -v v="$1" 'BEGIN { printf "$%.4f", v }'
 }
 
-read -r R_IN R_OUT R_CR R_CW5 R_CW1 < <(python3 -c "
+read -r PRICING_MODEL R_IN R_OUT R_CR R_CW5 R_CW1 < <(python3 -c "
 import json
-r = json.load(open('$HOOK_DIR/pricing.json'))['rates_usd_per_mtok']
-print(r['input'], r['output'], r['cache_read'], r['cache_write_5m'], r['cache_write_1h'])
-")
+p = json.load(open('$HOOK_DIR/pricing.json'))
+r = p['rates_usd_per_mtok']
+print(p.get('model','unknown'), r['input'], r['output'], r['cache_read'], r['cache_write_5m'], r['cache_write_1h'])
+" 2>/dev/null) || true
+
+if [ -z "$R_IN" ]; then
+  printf '  session-end: could not load pricing.json from %s — cost tracking disabled\n' "$HOOK_DIR" >&2
+  exit 0
+fi
 
 calc_cost() {
   awk -v tok_in="$1" -v tok_out="$2" -v cr="$3" -v cw5="$4" -v cw1="$5" \
@@ -129,7 +135,7 @@ elif [ "$MODE" = "end" ]; then
   printf '  ───────────────────────────────────────\n' >&2
   printf '  %-10s %13s\n'  "est. cost" "$(fmt_usd "$COST")" >&2
   printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >&2
-  printf '  API list rates: sonnet-4.6  (not seat cost)\n' >&2
+  printf '  API list rates: %s  (not seat cost)\n' "$PRICING_MODEL" >&2
 
   LOG_FILE="$HOME/.claude/token-log.jsonl"
   jq -n \

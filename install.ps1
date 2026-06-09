@@ -38,7 +38,8 @@ function Install-ScoopApp($name) {
 
 function Get-PinnedVersion($id) {
     $lock = Get-Content $LockFile | ConvertFrom-Json
-    return $lock.plugins.$id
+    if ($lock.plugins.PSObject.Properties[$id]) { return $lock.plugins.$id }
+    return "latest"
 }
 
 function Get-StoredChecksum($id) {
@@ -126,10 +127,6 @@ function Install-Plugins($vaultPath) {
             if (-not $downloaded -and (Test-Command gh)) {
                 $url = gh api "repos/$repo/releases/tags/$version" `
                     -q ".assets[] | select(.name == `"$asset`") | .browser_download_url" 2>$null
-                if (-not $url) {
-                    $url = gh api "repos/$repo/releases/latest" `
-                        -q ".assets[] | select(.name == `"$asset`") | .browser_download_url" 2>$null
-                }
                 if ($url) {
                     Invoke-WebRequest -Uri $url -OutFile $dest -UseBasicParsing
                     $downloaded = $true

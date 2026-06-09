@@ -147,7 +147,7 @@ if ($Mode -eq "stop") {
     [Console]::Error.WriteLine("  ───────────────────────────────────────")
     [Console]::Error.WriteLine("  {0,-10} {1,13}" -f "est. cost", ("`${0:F4}" -f $cost))
     [Console]::Error.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-    [Console]::Error.WriteLine("  API list rates: sonnet-4.6  (not seat cost)")
+    [Console]::Error.WriteLine("  API list rates: $($pricing.model)  (not seat cost)")
 
     $logFile = Join-Path $HOME ".claude\token-log.jsonl"
     [PSCustomObject]@{
