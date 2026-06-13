@@ -26,7 +26,7 @@ for f in "${FILES[@]}"; do
   printf '  %s\n' "$(rel "$f")" >&2
 done
 printf '────────────────────────────────────────\n' >&2
-[[ ${#FILES[@]} -gt 1 ]] && printf '  nvim: :bn / :bp  navigate  |  :bd  close buffer\n' >&2
+[[ ${#FILES[@]} -gt 1 ]] && printf '  nvim: gt / gT  switch tabs  |  :q  close tab\n' >&2
 
 # Require interactive terminal
 [[ ! -c /dev/tty ]] && exit 0
@@ -47,20 +47,21 @@ pane_alive() {
 if [[ -f "$PANE_ID_FILE" && -S "$SOCK" ]]; then
   PANE_ID=$(cat "$PANE_ID_FILE")
   if pane_alive "$PANE_ID"; then
-    # Load in reverse so FILES[0] ends up as the active buffer
+    # Open each in its own tab, reversed so FILES[0] ends up the active tab
     for (( i=${#FILES[@]}-1; i>=0; i-- )); do
-      nvim --server "$SOCK" --remote "${FILES[$i]}" 2>/dev/null
+      nvim --server "$SOCK" --remote-tab "${FILES[$i]}" 2>/dev/null
     done
-    nvim --server "$SOCK" --remote-send "zz" 2>/dev/null
+    # Drop the arglist so :q won't say "more files to edit", then recenter
+    nvim --server "$SOCK" --remote-send ':silent! argdelete *<CR>zz' 2>/dev/null
     exit 0
   fi
 fi
 
-# Spawn new pane with all files in the arglist
+# Spawn new pane with each file in its own tab (-p)
 rm -f "$SOCK"
-PANE_ID=$(wezterm cli split-pane -- nvim --listen "$SOCK" "${FILES[@]}" 2>/dev/null)
+PANE_ID=$(wezterm cli split-pane -- nvim --listen "$SOCK" -p "${FILES[@]}" 2>/dev/null)
 [[ -z "$PANE_ID" ]] && exit 0
 echo "$PANE_ID" > "$PANE_ID_FILE"
 i=0
 until [[ -S "$SOCK" || $i -ge 20 ]]; do sleep 0.1; i=$((i+1)); done
-[[ -S "$SOCK" ]] && nvim --server "$SOCK" --remote-send "zz" 2>/dev/null
+[[ -S "$SOCK" ]] && nvim --server "$SOCK" --remote-send ':silent! argdelete *<CR>zz' 2>/dev/null
