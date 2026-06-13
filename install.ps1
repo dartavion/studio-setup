@@ -340,6 +340,19 @@ function Invoke-BaseInstall {
     New-Item -ItemType Directory -Path $nvimDir -Force | Out-Null
     Set-Link (Join-Path $nvimDir "init.lua") (Join-Path $RepoDir "dotfiles\nvim\init.lua")
 
+    # ── Global CLAUDE.md — Epistemic Honesty ─────────────────────────────────
+    $claudeDir = Join-Path $env:USERPROFILE ".claude"
+    New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
+    $claudeMd  = Join-Path $claudeDir "CLAUDE.md"
+    $alreadyPresent = (Test-Path $claudeMd) -and ((Get-Content $claudeMd -Raw) -match "## Epistemic Honesty")
+    if (-not $alreadyPresent) {
+        Add-Content $claudeMd "`n" -Encoding UTF8
+        Get-Content (Join-Path $RepoDir "dotfiles\claude-global.md") -Raw | Add-Content $claudeMd -Encoding UTF8
+        Write-Host "    -> $claudeMd (Epistemic Honesty appended)"
+    } else {
+        Write-Host "    $claudeMd already contains Epistemic Honesty — skipped"
+    }
+
     # ── Claude Code hooks ─────────────────────────────────────────────────────
     Write-Host "  claude hooks"
     $hooksDir = Join-Path $env:USERPROFILE ".claude\hooks"
@@ -375,6 +388,20 @@ function Invoke-BaseInstall {
     foreach ($event in $hooksJson.Keys) {
         if (-not $settings.hooks.PSObject.Properties[$event]) {
             $settings.hooks | Add-Member -MemberType NoteProperty -Name $event -Value $hooksJson[$event]
+        } else {
+            # merge at the command level — don't add duplicates
+            $existingCmds = @(
+                $settings.hooks.$event | ForEach-Object { $_.hooks } | ForEach-Object { $_.command }
+            )
+            foreach ($entry in $hooksJson[$event]) {
+                foreach ($h in $entry.hooks) {
+                    if ($h.command -notin $existingCmds) {
+                        $settings.hooks.$event += $entry
+                        $existingCmds += $h.command
+                        break
+                    }
+                }
+            }
         }
     }
     $settings | ConvertTo-Json -Depth 10 | Set-Content $settingsPath

@@ -52,6 +52,7 @@ verify_checksum() {
 # ── Plugin manifest: id -> github_repo ───────────────────────────────────────
 
 PLUGIN_IDS=(
+  "catppuccin-obsidian:catppuccin/obsidian"
   "calendar:liamcain/obsidian-calendar-plugin"
   "dataview:blacksmithgu/obsidian-dataview"
   "homepage:mirnovov/obsidian-homepage"
@@ -101,6 +102,8 @@ install_plugins() {
 
   for entry in "${PLUGIN_IDS[@]}"; do
     local id="${entry%%:*}" repo="${entry##*:}"
+    # catppuccin-obsidian is a theme, not an Obsidian plugin — installed separately below
+    [ "$id" = "catppuccin-obsidian" ] && continue
     local version
     version="$(pinned_version "$id")"
     mkdir -p "$target/plugins/$id"
@@ -118,18 +121,26 @@ install_plugins() {
     done
   done
 
-  # Catppuccin theme
+  # Catppuccin theme — pinned via versions.lock key "catppuccin-obsidian"
   local theme_dir="$target/themes/Catppuccin"
   if [ ! -f "$theme_dir/theme.css" ]; then
     echo "  Catppuccin theme"
     mkdir -p "$theme_dir"
-    if curl -fsL "https://raw.githubusercontent.com/catppuccin/obsidian/main/theme.css" \
-          -o "$theme_dir/theme.css" 2>/dev/null && \
-       curl -fsL "https://raw.githubusercontent.com/catppuccin/obsidian/main/manifest.json" \
-          -o "$theme_dir/manifest.json" 2>/dev/null; then
-      echo "  Catppuccin theme ok"
-    else
+    local theme_version
+    theme_version="$(pinned_version "catppuccin-obsidian")"
+    local theme_ok=0
+    if [ "$theme_version" != "latest" ]; then
+      if curl -fsL "https://github.com/catppuccin/obsidian/releases/download/${theme_version}/theme.css" \
+            -o "$theme_dir/theme.css" 2>/dev/null && \
+         curl -fsL "https://github.com/catppuccin/obsidian/releases/download/${theme_version}/manifest.json" \
+            -o "$theme_dir/manifest.json" 2>/dev/null; then
+        theme_ok=1
+      fi
+    fi
+    if [ $theme_ok -eq 0 ]; then
       echo "  warning: Catppuccin theme download failed — vault will open without theme"
+    else
+      echo "  Catppuccin theme ok"
     fi
   fi
 
@@ -285,14 +296,9 @@ full_install_wsl() {
     echo "  zoxide ok"
   fi
 
-  if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo ""
-    echo "  WSL note: set zsh as default shell with:"
-    echo "    chsh -s \$(which zsh)"
-    echo "  Then install oh-my-zsh manually (requires interactive shell):"
-    echo '    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
-    echo ""
-  fi
+  echo ""
+  echo "  WSL note: set zsh as default shell with:  chsh -s \$(which zsh)"
+  echo ""
 
   if ! command -v claude &>/dev/null; then
     echo "  installing Claude Code..."
@@ -316,11 +322,6 @@ full_install_wsl() {
   echo ""
   echo "  Manual steps remaining:"
   echo ""
-  if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo "  1. Install oh-my-zsh:"
-    echo '     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
-    echo ""
-  fi
   echo "  Open Obsidian on the Windows side → Add Vault → select vault/"
   echo "  Settings → Community plugins → click 'Trust' for each plugin"
   echo ""
@@ -339,21 +340,10 @@ full_install_macos() {
 
   install_cask() {
     local app="$1" cask="$2"
-    if ! brew list --cask "$cask" &>/dev/null; then
-      echo "  installing $cask..."
-      brew install --cask "$cask"
-    else
+    if brew list --cask "$cask" &>/dev/null; then
       echo "  $app ok"
+      return
     fi
-  }
-
-  install_formula() {
-    local formula="$1"
-    if ! brew list "$formula" &>/dev/null; then
-      echo "  installing $formula..."
-      brew install "$formula"
-    else
-      echo "  $formula ok"
     # If the app is already installed manually (outside brew), leave it untouched.
     # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
     if [ -d "/Applications/$app.app" ]; then
@@ -363,6 +353,15 @@ full_install_macos() {
     echo "  installing $cask..."
     brew install --cask "$cask" \
       || echo "  warning: could not install $cask — continuing"
+  }
+
+  install_formula() {
+    local formula="$1"
+    if ! brew list "$formula" &>/dev/null; then
+      echo "  installing $formula..."
+      brew install "$formula"
+    else
+      echo "  $formula ok"
     fi
   }
 
@@ -403,19 +402,10 @@ full_install_macos() {
   echo "==> All done."
   echo ""
 
-  local step=1
-  if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    echo "  Manual steps required:"
-    echo ""
-    echo "  $step. Install oh-my-zsh (requires an interactive shell — can't be scripted):"
-    echo '     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"'
-    echo "     Then open a new shell — ~/.zshrc is already symlinked and takes over."
-    step=$((step + 1))
-  fi
-
-  echo "  $step. Open Obsidian → Add Vault → select $(pwd)/vault"
-  step=$((step + 1))
-  echo "  $step. Settings → Community plugins → click 'Trust' for each plugin"
+  echo "  Manual steps required:"
+  echo ""
+  echo "  1. Open Obsidian → Add Vault → select $(pwd)/vault"
+  echo "  2. Settings → Community plugins → click 'Trust' for each plugin"
   echo ""
   echo "  Dashboard opens automatically and KPI cards render on first load."
 }
@@ -595,17 +585,6 @@ case "${1:-}" in
     ln -sf "$REPO_DIR/dotfiles/nvim/init.lua" "$HOME/.config/nvim/init.lua"
     echo "    ~> ~/.config/nvim/init.lua"
 
-    # seed ~/.zshrc.local from template if none exists
-    if [ ! -f "$HOME/.zshrc.local" ]; then
-      cp "$REPO_DIR/dotfiles/zshrc.local.template" "$HOME/.zshrc.local"
-      echo "    created ~/.zshrc.local from template"
-    fi
-
-    echo "  claude hooks"
-    mkdir -p ~/.claude/hooks
-    for f in "$REPO_DIR/hooks/"*.sh; do
-      name="$(basename "$f")"
-      ln -sf "$f" ~/.claude/hooks/"$name"
     # nvim plugin lockfile — COPIED (not symlinked) so a later ':Lazy update'
     # writes the user's own copy, never the repo. Pins plugins to the versions
     # the kit was tested against (same reproducibility bar as the Obsidian plugins).
@@ -619,6 +598,28 @@ case "${1:-}" in
       fi
     fi
 
+    # seed ~/.zshrc.local from template if none exists
+    if [ ! -f "$HOME/.zshrc.local" ]; then
+      cp "$REPO_DIR/dotfiles/zshrc.local.template" "$HOME/.zshrc.local"
+      echo "    created ~/.zshrc.local from template"
+    fi
+
+    # global Claude CLAUDE.md — append Epistemic Honesty if not already present
+    CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+    mkdir -p "$HOME/.claude"
+    if ! grep -q "## Epistemic Honesty" "$CLAUDE_MD" 2>/dev/null; then
+      printf '\n' >> "$CLAUDE_MD"
+      cat "$REPO_DIR/dotfiles/claude-global.md" >> "$CLAUDE_MD"
+      echo "    ~> ~/.claude/CLAUDE.md (Epistemic Honesty appended)"
+    else
+      echo "    ~/.claude/CLAUDE.md already contains Epistemic Honesty — skipped"
+    fi
+
+    echo "  claude hooks"
+    mkdir -p ~/.claude/hooks
+    for f in "$REPO_DIR/hooks/"*.sh; do
+      name="$(basename "$f")"
+      ln -sf "$f" ~/.claude/hooks/"$name"
       chmod +x "$f"
       echo "    ~> ~/.claude/hooks/$name"
     done
@@ -651,6 +652,19 @@ existing = settings.get("hooks", {})
 for event, entries in new_hooks.items():
     if event not in existing:
         existing[event] = entries
+    else:
+        # merge at the command level — don't add duplicates
+        existing_cmds = {
+            h.get("command")
+            for entry in existing[event]
+            for h in entry.get("hooks", [])
+        }
+        for entry in entries:
+            for h in entry.get("hooks", []):
+                if h.get("command") not in existing_cmds:
+                    existing[event].append(entry)
+                    existing_cmds.add(h.get("command"))
+                    break
 settings["hooks"] = existing
 with open(settings_path, "w") as f:
     json.dump(settings, f, indent=2)

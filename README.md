@@ -73,10 +73,19 @@ Base config is symlinked from `wezterm/wezterm.lua` to `~/.config/wezterm/` by `
 
 **What you get:**
 - Tokyo Night color scheme, JetBrains Mono Nerd Font
+- [tabline.wez](https://github.com/michaelbrusegard/tabline.wez) status bar — mode, workspace, per-tab cwd/process, RAM/CPU, clock, and **today's Claude Code spend** (read from `~/.claude/token-log.jsonl`; macOS/Linux only)
 - Vim-style pane navigation (`CMD+SHIFT+h/j/k/l`)
 - Pane splits (`CMD+D` horizontal, `CMD+SHIFT+D` vertical)
 - Workspace picker (`CMD+O`)
-- Status bar showing active workspace, tab titles showing current directory
+
+**Plugins** are fetched from GitHub on first launch and pinned at first clone — they never auto-update. `CMD+a` is the leader (tmux-style prefix), so plugin actions never shadow shell control keys:
+
+| Plugin | What it adds |
+|--------|--------------|
+| [tabline.wez](https://github.com/michaelbrusegard/tabline.wez) | Status bar + tab line |
+| [smart_workspace_switcher](https://github.com/MLFlexer/smart_workspace_switcher.wezterm) | Fuzzy `zoxide` workspace jump — `CMD+a` `s` |
+| [resurrect](https://github.com/MLFlexer/resurrect.wezterm) | Save/restore window + pane layout — `CMD+a` `w` saves, `CMD+a` `r` restores (auto-saves every 15 min) |
+| [smart_ssh](https://github.com/DavidRR-F/smart_ssh.wezterm) | SSH host picker from `~/.ssh/config` — `CMD+a` `Shift+s` (tab), `CMD+a` `5` (hsplit), `CMD+a` `'` (vsplit) |
 
 ### Adding a project workspace
 
@@ -203,6 +212,23 @@ Plugins are downloaded automatically as part of `--vault`. Open `my-project/vaul
 
 The vault includes `CLAUDE.md` — when Claude Code reads your vault it automatically understands the folder structure, frontmatter conventions, and KPI schema. No explanation needed per session.
 
+### Opinionated AI posture
+
+`install.sh` appends an **Epistemic Honesty** section to `~/.claude/CLAUDE.md` — the global instruction file Claude Code reads at the start of every session, across every project.
+
+This is intentionally opinionated. The default failure mode of LLMs is not incompetence — it's approval-seeking: agreeing when they should push back, elaborating when they should ask what the actual problem is, performing confidence when they should surface uncertainty. Left unchecked, this compounds over a long session into a model that tells you what you want to hear.
+
+The section installed here addresses that directly:
+
+- Default to pushback over agreement — disagreement stated plainly is the useful contribution
+- State what changed your mind when updating a position; state why you're holding it under pushback
+- Don't close loops on raw material — flag gaps instead of papering over them
+- Watch for sycophancy drift mid-response and name it when caught
+
+The same content lives in `vault/CLAUDE.md` for vault-scoped sessions and in `dotfiles/claude-global.md` as the single source of truth. Edit that file to update both.
+
+This posture works best with capable models. On weaker models it slows drift without stopping it — the form of the behavior appears without the substance. On models with enough headroom, it consistently produces more honest, more useful engagement.
+
 ---
 
 ## Windows
@@ -211,7 +237,7 @@ There are two supported paths on Windows — choose one or run both.
 
 ### Option A: WSL (recommended for engineers)
 
-WSL gives you the full Linux toolchain (zsh, oh-my-zsh, eza, bat, starship, Neovim) with WezTerm and Obsidian running natively on the Windows side.
+WSL gives you the full Linux toolchain (zsh, eza, bat, starship, Neovim) with WezTerm and Obsidian running natively on the Windows side.
 
 **Prerequisites:** [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) with Ubuntu, [WezTerm for Windows](https://wezfurlong.org/wezterm/), [Obsidian for Windows](https://obsidian.md).
 
@@ -225,8 +251,6 @@ cd studio-setup
 The script detects WSL automatically and switches to `apt` + curl installers instead of Homebrew. WezTerm and Obsidian are skipped (they run on the Windows side). Open a WezTerm tab pointing at your WSL distro to get the full shell experience.
 
 **`batcat` / `fdfind`:** Ubuntu packages these utilities under different names. The zshrc handles this automatically — `cat` and `fd` work as expected.
-
-**oh-my-zsh:** Same manual step as macOS — run the curl installer once in a zsh session, then the symlinked `.zshrc` takes over.
 
 ### Option B: PowerShell native
 
@@ -325,10 +349,11 @@ Or trigger the workflow directly from the GitHub Actions tab — no local change
 ### What's configured
 
 **Shell (`zshrc`)**
-- oh-my-zsh with `zsh-autosuggestions` and `zsh-syntax-highlighting`
+- No framework — zsh with completion (`compinit`), history, and emacs keybindings configured directly
+- `zsh-autosuggestions` and `zsh-syntax-highlighting` (installed via brew/apt, sourced directly)
 - `eza` (better `ls`), `bat` (better `cat`), `zoxide` (better `cd`), `fzf`
 - NVM, pyenv, pnpm wired up via `$HOME` paths (no hardcoded usernames)
-- Starship prompt (must be last — overrides oh-my-zsh theme)
+- Starship prompt (initialized last)
 
 **Prompt (`starship.toml`)**
 - Catppuccin Mocha palette — matches Neovim and Obsidian
@@ -340,7 +365,9 @@ Or trigger the workflow directly from the GitHub Actions tab — no local change
 - [mason.nvim](https://github.com/williamboman/mason.nvim) — auto-installs LSP servers (TS, Python, Go, Rust, CSS, HTML, JSON, YAML)
 - Telescope fuzzy finder (`<leader>ff/fg/fb/fr`)
 - nvim-tree file explorer (`<leader>e`)
-- Treesitter highlighting, nvim-cmp autocompletion, conform.nvim format-on-save
+- [smart-splits](https://github.com/mrjones2014/smart-splits.nvim) — `<C-h/j/k/l>` navigates nvim splits *and* WezTerm panes seamlessly; `<M-h/j/k/l>` resizes
+- [lazydev](https://github.com/folke/lazydev.nvim) + wezterm-types — autocomplete and inline docs when editing `wezterm.lua`
+- Treesitter highlighting (incl. Kotlin), nvim-cmp autocompletion, conform.nvim format-on-save
 - Gitsigns, Neogit (`<leader>gg`), which-key, indent guides, markdown preview
 
 ### Machine-specific config
@@ -352,13 +379,3 @@ cp dotfiles/zshrc.local.template ~/.zshrc.local
 ```
 
 Typical entries: `GOOGLE_CLOUD_PROJECT`, API keys, corporate proxy, Android SDK path. See the template for a full reference.
-
-### oh-my-zsh
-
-oh-my-zsh is not installed by `install.sh --full` because it requires an interactive shell prompt during install. Run it once manually:
-
-```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-```
-
-Then open a new shell — the symlinked `~/.zshrc` takes over.
