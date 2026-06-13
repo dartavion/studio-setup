@@ -9,7 +9,7 @@ function M.login_cmd(cmd)
 end
 
 function M.shell_in(path)
-  return { 'zsh', '--login', '-c', 'cd ' .. path .. ' && clear; exec zsh' }
+  return { 'zsh', '--login', '-c', 'cd "$1" && clear; exec zsh', '--', path }
 end
 
 -- Spawns a right-side shell pane from an existing left agent pane (45% width)
