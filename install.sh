@@ -597,6 +597,19 @@ case "${1:-}" in
     for f in "$REPO_DIR/hooks/"*.sh; do
       name="$(basename "$f")"
       ln -sf "$f" ~/.claude/hooks/"$name"
+    # nvim plugin lockfile — COPIED (not symlinked) so a later ':Lazy update'
+    # writes the user's own copy, never the repo. Pins plugins to the versions
+    # the kit was tested against (same reproducibility bar as the Obsidian plugins).
+    if [ -f "$REPO_DIR/dotfiles/nvim/lazy-lock.json" ]; then
+      cp "$REPO_DIR/dotfiles/nvim/lazy-lock.json" "$HOME/.config/nvim/lazy-lock.json"
+      echo "    ~> ~/.config/nvim/lazy-lock.json (pinned)"
+      if command -v nvim >/dev/null 2>&1; then
+        echo "    installing + pinning nvim plugins (first run may take a minute)…"
+        nvim --headless "+Lazy! restore" +qa >/dev/null 2>&1 || \
+          echo "    note: open nvim and run ':Lazy restore' if plugins aren't pinned"
+      fi
+    fi
+
       chmod +x "$f"
       echo "    ~> ~/.claude/hooks/$name"
     done

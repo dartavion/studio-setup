@@ -155,6 +155,7 @@ require("lazy").setup({
   -- treesitter
   {
     "nvim-treesitter/nvim-treesitter",
+    branch = "master", -- pin to classic API; default branch is now the `main` rewrite (no .configs)
     build = ":TSUpdate",
     opts  = {
       ensure_installed = {
