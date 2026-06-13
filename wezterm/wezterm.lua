@@ -9,8 +9,10 @@ local is_windows = target:find('windows') ~= nil
 
 -- ── Plugins ──────────────────────────────────────────────────────────────────
 -- Loaded from GitHub via wezterm.plugin.require (cloned once into the plugin
--- cache; never auto-updates — see the kit's update-check tooling). To pin/audit,
--- review the commit in the local clone before running wezterm.plugin.update_all().
+-- cache; never auto-updates). Vetted commit SHAs are recorded in
+-- wezterm/plugins.lock; run wezterm/check-plugins.sh to detect drift (e.g. after
+-- wezterm.plugin.update_all()). require() can't pin to a ref, so this is
+-- drift/tamper detection, not true pinning — review upstream before updating.
 local tabline   = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
 local resurrect = wezterm.plugin.require 'https://github.com/MLFlexer/resurrect.wezterm'
 local wkswitch  = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
