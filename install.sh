@@ -634,7 +634,8 @@ case "${1:-}" in
     [ ! -f "$SETTINGS" ] && echo '{}' > "$SETTINGS"
 
     HOOKS_JSON='{
-      "PreToolUse":  [{"matcher":"Write","hooks":[{"type":"command","command":"~/.claude/hooks/file-gate.sh"}]}],
+      "PreToolUse":  [{"matcher":"Write","hooks":[{"type":"command","command":"~/.claude/hooks/file-gate.sh"}]},
+                      {"matcher":"Bash","hooks":[{"type":"command","command":"~/.claude/hooks/git-guard.sh"}]}],
       "PostToolUse": [{"matcher":"Edit|Write","hooks":[{"type":"command","command":"~/.claude/hooks/edit-tracker.sh","async":true}]}],
       "Stop":        [{"hooks":[{"type":"command","command":"~/.claude/hooks/turn-review.sh"}]},
                       {"hooks":[{"type":"command","command":"~/.claude/hooks/session-end.sh stop"}]}],

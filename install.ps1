@@ -377,7 +377,8 @@ function Invoke-BaseInstall {
     }
 
     $hooksJson = @{
-        PreToolUse  = @(@{ matcher = "Write";        hooks = @(@{ type = "command"; command = "$hooksDir\file-gate.ps1"; shell = "powershell" }) })
+        PreToolUse  = @(@{ matcher = "Write";        hooks = @(@{ type = "command"; command = "$hooksDir\file-gate.ps1"; shell = "powershell" }) },
+                        @{ matcher = "Bash";         hooks = @(@{ type = "command"; command = "$hooksDir\git-guard.ps1"; shell = "powershell" }) })
         PostToolUse = @(@{ matcher = "Edit|Write";   hooks = @(@{ type = "command"; command = "$hooksDir\edit-tracker.ps1"; shell = "powershell"; async = $true }) })
         Stop        = @(@{ hooks = @(@{ type = "command"; command = "$hooksDir\turn-review.ps1"; shell = "powershell" }) },
                         @{ hooks = @(@{ type = "command"; command = "$hooksDir\session-end.ps1 stop"; shell = "powershell" }) })
