@@ -10,7 +10,7 @@ local is_windows = target:find('windows') ~= nil
 -- ── Plugins ──────────────────────────────────────────────────────────────────
 -- Loaded from GitHub via wezterm.plugin.require (cloned once into the plugin
 -- cache; never auto-updates). Vetted commit SHAs are recorded in
--- wezterm/plugins.lock; run wezterm/check-plugins.sh to detect drift (e.g. after
+-- wezterm/plugins.lock; run wezterm/check-plugins.sh (or .ps1 on Windows) to detect drift (e.g. after
 -- wezterm.plugin.update_all()). require() can't pin to a ref, so this is
 -- drift/tamper detection, not true pinning — review upstream before updating.
 local tabline   = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
