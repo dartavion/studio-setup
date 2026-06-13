@@ -354,6 +354,15 @@ full_install_macos() {
       brew install "$formula"
     else
       echo "  $formula ok"
+    # If the app is already installed manually (outside brew), leave it untouched.
+    # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
+    if [ -d "/Applications/$app.app" ]; then
+      echo "  $app already present (not brew-managed) — skipping"
+      return
+    fi
+    echo "  installing $cask..."
+    brew install --cask "$cask" \
+      || echo "  warning: could not install $cask — continuing"
     fi
   }
 
