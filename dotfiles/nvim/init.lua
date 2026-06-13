@@ -42,11 +42,8 @@ opt.conceallevel   = 1  -- for Obsidian.nvim and markdown
 
 local map = vim.keymap.set
 
--- window navigation
-map("n", "<C-h>", "<C-w>h")
-map("n", "<C-j>", "<C-w>j")
-map("n", "<C-k>", "<C-w>k")
-map("n", "<C-l>", "<C-w>l")
+-- window navigation: <C-hjkl> is handled by smart-splits.nvim (configured below),
+-- which moves between nvim splits and crosses into adjacent WezTerm panes at the edge.
 
 -- buffer nav
 map("n", "<S-h>", ":bprevious<CR>", { silent = true })
@@ -162,7 +159,7 @@ require("lazy").setup({
     opts  = {
       ensure_installed = {
         "lua", "vim", "vimdoc",
-        "typescript", "javascript", "tsx", "html", "css",
+        "typescript", "javascript", "tsx", "kotlin", "html", "css",
         "python", "go", "rust",
         "json", "yaml", "toml", "markdown", "markdown_inline",
         "bash", "dockerfile",
@@ -173,6 +170,36 @@ require("lazy").setup({
     config = function(_, opts)
       require("nvim-treesitter.configs").setup(opts)
     end,
+  },
+
+  -- pane navigation: nvim splits <-> WezTerm panes (preserve-shell-keys mode)
+  {
+    "mrjones2014/smart-splits.nvim",
+    lazy = false,
+    config = function()
+      local ss = require("smart-splits")
+      ss.setup({ at_edge = "stop" })
+      vim.keymap.set("n", "<C-h>", ss.move_cursor_left,  { desc = "Move to left split/pane" })
+      vim.keymap.set("n", "<C-j>", ss.move_cursor_down,  { desc = "Move to lower split/pane" })
+      vim.keymap.set("n", "<C-k>", ss.move_cursor_up,    { desc = "Move to upper split/pane" })
+      vim.keymap.set("n", "<C-l>", ss.move_cursor_right, { desc = "Move to right split/pane" })
+      vim.keymap.set("n", "<M-h>", ss.resize_left,  { desc = "Resize split left" })
+      vim.keymap.set("n", "<M-j>", ss.resize_down,  { desc = "Resize split down" })
+      vim.keymap.set("n", "<M-k>", ss.resize_up,    { desc = "Resize split up" })
+      vim.keymap.set("n", "<M-l>", ss.resize_right, { desc = "Resize split right" })
+    end,
+  },
+
+  -- WezTerm Lua API types: completion/docs when editing wezterm.lua
+  {
+    "folke/lazydev.nvim",
+    ft = "lua",
+    dependencies = { "DrKJeff16/wezterm-types" },
+    opts = {
+      library = {
+        { path = "wezterm-types", mods = { "wezterm" } },
+      },
+    },
   },
 
   -- LSP

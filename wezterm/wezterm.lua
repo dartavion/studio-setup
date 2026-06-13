@@ -1,16 +1,26 @@
-local wezterm = require 'wezterm'
+local wezterm = require 'wezterm' ---@type Wezterm
 local mux     = wezterm.mux
 local act     = wezterm.action
-local config  = wezterm.config_builder()
+local config  = wezterm.config_builder() ---@type Config
+
+local home      = wezterm.home_dir
+local target    = wezterm.target_triple  -- e.g. "x86_64-pc-windows-msvc"
+local is_windows = target:find('windows') ~= nil
+
+-- ── Plugins ──────────────────────────────────────────────────────────────────
+-- Loaded from GitHub via wezterm.plugin.require (cloned once into the plugin
+-- cache; never auto-updates — see the kit's update-check tooling). To pin/audit,
+-- review the commit in the local clone before running wezterm.plugin.update_all().
+local tabline   = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
+local resurrect = wezterm.plugin.require 'https://github.com/MLFlexer/resurrect.wezterm'
+local wkswitch  = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
+local smart_ssh = wezterm.plugin.require 'https://github.com/DavidRR-F/smart_ssh.wezterm'
 
 -- ── Shell & PATH ─────────────────────────────────────────────────────────────
 -- macOS/Linux only — on Windows, WezTerm uses the default shell (PowerShell or
 -- a WSL distro) and inherits PATH from the system environment.
 
-local home   = wezterm.home_dir
-local target = wezterm.target_triple  -- e.g. "x86_64-pc-windows-msvc"
-
-if not target:find('windows') then
+if not is_windows then
   config.default_prog = { '/bin/zsh', '--login' }
   config.set_environment_variables = {
     PATH = '/opt/homebrew/bin:'
@@ -32,7 +42,18 @@ config.tab_bar_at_bottom            = true
 config.use_fancy_tab_bar            = false
 config.window_decorations           = 'RESIZE'
 
+-- Quality-of-life
+config.inactive_pane_hsb            = { saturation = 0.8, brightness = 0.6 }  -- dim unfocused panes
+config.scrollback_lines             = 10000                                  -- default is a stingy 3500
+config.front_end                    = 'WebGpu'                               -- smoother GPU rendering
+config.window_background_opacity    = 0.96
+config.macos_window_background_blur  = 20    -- macOS only; ignored elsewhere
+config.audible_bell                 = 'Disabled'
+config.adjust_window_size_when_changing_font_size = false
+
 -- ── Keybindings ──────────────────────────────────────────────────────────────
+-- Leader (tmux-style prefix). Press CMD+a, then the next key.
+config.leader = { key = 'a', mods = 'CMD', timeout_milliseconds = 1000 }
 
 config.keys = {
   -- Pane splits
@@ -49,34 +70,102 @@ config.keys = {
   { key = 't', mods = 'CMD',       action = act.SpawnTab 'CurrentPaneDomain'         },
   { key = '[', mods = 'CMD|SHIFT', action = act.ActivateTabRelative(-1)              },
   { key = ']', mods = 'CMD|SHIFT', action = act.ActivateTabRelative(1)               },
-  -- Workspace picker
+  -- Workspace picker (built-in)
   { key = 'o', mods = 'CMD',       action = act.ShowLauncherArgs { flags = 'WORKSPACES' } },
+
+  -- Plugin actions (leader-prefixed so they never shadow shell control keys)
+  -- LEADER+s → fuzzy workspace switcher (zoxide-backed)
+  { key = 's', mods = 'LEADER',       action = wkswitch.switch_workspace() },
+  -- smart_ssh: pick a host from ~/.ssh/config
+  { key = 's', mods = 'LEADER|SHIFT', action = smart_ssh.tab()    },  -- new tab
+  { key = '5', mods = 'LEADER',       action = smart_ssh.hsplit() },  -- horizontal split
+  { key = "'", mods = 'LEADER',       action = smart_ssh.vsplit() },  -- vertical split
+  -- resurrect: LEADER+w saves current workspace state, LEADER+r restores
+  { key = 'w', mods = 'LEADER', action = wezterm.action_callback(function(win, pane)
+      resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
+      win:toast_notification('resurrect', 'workspace state saved', nil, 2000)
+  end) },
+  { key = 'r', mods = 'LEADER', action = wezterm.action_callback(function(win, pane)
+      resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
+        local kind = string.match(id, '^([^/]+)')
+        id = string.match(id, '([^/]+)$')
+        id = string.match(id, '(.+)%..+$')
+        local opts = {
+          relative        = true,
+          restore_text    = true,
+          on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+        }
+        if kind == 'workspace' then
+          local state = resurrect.state_manager.load_state(id, 'workspace')
+          resurrect.workspace_state.restore_workspace(state, opts)
+        elseif kind == 'window' then
+          local state = resurrect.state_manager.load_state(id, 'window')
+          resurrect.window_state.restore_window(pane:window(), state, opts)
+        end
+      end)
+  end) },
+
   -- Per-project workspace shortcuts go here, e.g.:
   -- { key = '1', mods = 'CMD', action = require('workspaces.my_project').switch_action() },
 }
 
--- ── Status bar — workspace name ───────────────────────────────────────────────
+-- ── Status bar — tabline.wez ─────────────────────────────────────────────────
+-- tabline owns format-tab-title and update-status (replaces the manual
+-- update-right-status / format-tab-title handlers).
 
-wezterm.on('update-right-status', function(window)
-  local workspace = window:active_workspace()
-  window:set_right_status(wezterm.format {
-    { Foreground = { AnsiColor = 'Silver' } },
-    { Text = '  ' .. workspace .. '  ' },
-  })
-end)
-
--- ── Tab titles — current directory ───────────────────────────────────────────
-
-wezterm.on('format-tab-title', function(tab)
-  local pane  = tab.active_pane
-  local cwd   = pane.current_working_dir
-  if cwd then
-    local path  = cwd.file_path
-    local short = path:match('([^/]+)$') or path
-    return ' ' .. short .. ' '
+-- Claude Code spend today — custom component sourced from the kit's
+-- ~/.claude/token-log.jsonl (written by the session-end hook). This is *spend*,
+-- not subscription rate-limit quota. bash+jq, so non-Windows only. Shells out at
+-- most once / 60s and caches between calls.
+local claude_spend = (function()
+  local cached, last_check = '', 0
+  local script = home .. '/.config/wezterm/scripts/today-cost.sh'
+  return function()
+    local now = os.time()
+    if now - last_check >= 60 then
+      last_check = now
+      local ok, success, stdout = pcall(wezterm.run_child_process, { '/bin/bash', script })
+      if ok and success and stdout then
+        cached = (stdout:gsub('%s+$', ''))
+      end
+    end
+    if cached == '' then return '' end
+    return (wezterm.nerdfonts.md_robot_outline or 'cc') .. ' ' .. cached
   end
-  return ' ' .. tab.active_pane.title .. ' '
-end)
+end)()
+
+local tabline_y = { 'datetime', 'battery' }
+if not is_windows then
+  table.insert(tabline_y, 1, claude_spend)
+end
+
+tabline.setup {
+  options = {
+    icons_enabled = true,
+    theme         = 'Tokyo Night',
+    tabs_enabled  = true,
+  },
+  sections = {
+    tabline_a    = { 'mode' },
+    tabline_b    = { 'workspace' },
+    tabline_c    = { ' ' },
+    tab_active   = { 'index', { 'parent', padding = 0 }, '/', { 'cwd', padding = { left = 0, right = 1 } } },
+    tab_inactive = { 'index', { 'process', padding = { left = 0, right = 1 } } },
+    tabline_x    = { 'ram', 'cpu' },
+    tabline_y    = tabline_y,
+    tabline_z    = { 'domain' },
+  },
+}
+tabline.apply_to_config(config)
+-- apply_to_config forces the bar to the top; keep the bottom preference.
+config.tab_bar_at_bottom = true
+
+-- SSH domains from ~/.ssh/config (keys defined above; must run after config.keys).
+smart_ssh.apply_to_config(config)
+
+-- resurrect: periodic background save (every 15 min). Restore with LEADER+r.
+-- Intentionally NOT hooked into gui-startup (startup is owned below).
+resurrect.state_manager.periodic_save()
 
 -- ── Startup ───────────────────────────────────────────────────────────────────
 -- Load project workspaces and auto-spawn on startup.

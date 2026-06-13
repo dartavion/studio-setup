@@ -547,6 +547,14 @@ case "${1:-}" in
       target=~/.config/wezterm/workspaces/"$name"
       [ ! -e "$target" ] && ln -sf "$f" "$target" && echo "    ~> ~/.config/wezterm/workspaces/$name"
     done
+    # helper scripts used by wezterm.lua (e.g. the tabline spend component)
+    if [ -d "$REPO_DIR/wezterm/scripts" ]; then
+      mkdir -p ~/.config/wezterm/scripts
+      for f in "$REPO_DIR/wezterm/scripts/"*; do
+        ln -sf "$f" ~/.config/wezterm/scripts/"$(basename "$f")"
+        echo "    ~> ~/.config/wezterm/scripts/$(basename "$f")"
+      done
+    fi
 
     # ── Dotfiles ─────────────────────────────────────────────────────────
 
