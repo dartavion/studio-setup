@@ -9,7 +9,9 @@ plugins=(
   zsh-syntax-highlighting
 )
 
-source "$ZSH/oh-my-zsh.sh"
+# oh-my-zsh is a manual install step (see README) — source it only once present,
+# so a fresh shell doesn't error before you've installed it.
+[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
 
 ## ── PATH helpers ─────────────────────────────────────────────────────────────
 
