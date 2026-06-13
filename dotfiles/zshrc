@@ -1,17 +1,22 @@
-## ── oh-my-zsh ────────────────────────────────────────────────────────────────
+## ── zsh basics ───────────────────────────────────────────────────────────────
+# No framework: starship is the prompt, git aliases are defined below, and the
+# autosuggestions/syntax-highlighting plugins are sourced directly. This is
+# everything oh-my-zsh was actually providing here.
 
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"  # overridden by starship at end of file
+# Completion
+autoload -Uz compinit && compinit -i
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'   # case-insensitive
 
-# Only oh-my-zsh's own built-in plugins belong here. zsh-autosuggestions and
-# zsh-syntax-highlighting are installed via brew/apt — sourced directly below so
-# they work with or without oh-my-zsh (oh-my-zsh would look for them in its custom
-# plugins dir, not where brew/apt install them).
-plugins=(git)
+# History
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=50000
+SAVEHIST=50000
+setopt SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS INC_APPEND_HISTORY
 
-# oh-my-zsh is a manual install step (see README) — source it only once present,
-# so a fresh shell doesn't error before you've installed it.
-[ -f "$ZSH/oh-my-zsh.sh" ] && source "$ZSH/oh-my-zsh.sh"
+# Sane interactive options
+setopt AUTO_CD INTERACTIVE_COMMENTS
+bindkey -e   # emacs keybindings (Ctrl-A / Ctrl-E / Ctrl-R …)
 
 # zsh-autosuggestions (brew/apt). Candidate paths: Apple Silicon, Intel mac, Linux.
 for _f in \
@@ -118,12 +123,12 @@ alias wt='wezterm start --cwd .'
 
 ## ── prompt ───────────────────────────────────────────────────────────────────
 
-# Starship overrides the oh-my-zsh theme
+# Starship prompt
 command -v starship &>/dev/null && eval "$(starship init zsh)"
 
 ## ── syntax highlighting (must be the very last thing sourced) ─────────────────
 # zsh-syntax-highlighting wraps every zle widget, so it has to load after
-# everything else that defines widgets (oh-my-zsh, fzf, starship).
+# everything else that defines widgets (fzf, starship, etc.).
 for _f in \
   /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
   /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
