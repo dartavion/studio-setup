@@ -212,29 +212,20 @@ require("lazy").setup({
     },
     config = function()
       require("mason").setup()
-      require("mason-lspconfig").setup({
-        ensure_installed = {
-          "lua_ls", "ts_ls", "pyright", "gopls", "rust_analyzer",
-          "cssls", "html", "jsonls", "yamlls",
-        },
-        automatic_installation = true,
+
+      -- Buffer-local LSP keymaps — replaces the old per-server on_attach.
+      vim.api.nvim_create_autocmd("LspAttach", {
+        callback = function(args)
+          local bufopts = { noremap = true, silent = true, buffer = args.buf }
+          vim.keymap.set("n", "gD", vim.lsp.buf.declaration,            bufopts)
+          vim.keymap.set("n", "gi", vim.lsp.buf.implementation,         bufopts)
+          vim.keymap.set("n", "<leader>D", vim.lsp.buf.type_definition, bufopts)
+        end,
       })
 
-      local lspconfig = require("lspconfig")
-      local on_attach = function(_, bufnr)
-        local bufopts = { noremap = true, silent = true, buffer = bufnr }
-        vim.keymap.set("n", "gD", vim.lsp.buf.declaration,      bufopts)
-        vim.keymap.set("n", "gi", vim.lsp.buf.implementation,   bufopts)
-        vim.keymap.set("n", "<leader>D", vim.lsp.buf.type_definition, bufopts)
-      end
-
-      local servers = { "ts_ls", "pyright", "gopls", "rust_analyzer", "cssls", "html", "jsonls", "yamlls" }
-      for _, server in ipairs(servers) do
-        lspconfig[server].setup({ on_attach = on_attach })
-      end
-
-      lspconfig.lua_ls.setup({
-        on_attach = on_attach,
+      -- Per-server overrides, merged over nvim-lspconfig's bundled lsp/ defaults.
+      -- Registered before enabling so the override is in place when the server starts.
+      vim.lsp.config("lua_ls", {
         settings = {
           Lua = {
             diagnostics = { globals = { "vim" } },
@@ -242,6 +233,15 @@ require("lazy").setup({
           },
         },
       })
+
+      local servers = {
+        "lua_ls", "ts_ls", "pyright", "gopls", "rust_analyzer",
+        "cssls", "html", "jsonls", "yamlls",
+      }
+      require("mason-lspconfig").setup({ ensure_installed = servers })
+
+      -- nvim 0.11+ native enable; consumes nvim-lspconfig's lsp/<name>.lua configs.
+      vim.lsp.enable(servers)
     end,
   },
 
