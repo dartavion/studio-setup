@@ -37,8 +37,8 @@ try { $key = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown") } catch { exit 0 }
 [Console]::Error.WriteLine("")
 if ($key.Character -eq 'n' -or $key.Character -eq 'N') { exit 0 }
 
-$pipe       = '\\.\pipe\nvim-claude'
-$paneIdFile = "$env:TEMP\nvim-claude-pane-id"
+$pipe       = "\\.\pipe\nvim-claude-$sessionId"
+$paneIdFile = "$env:TEMP\nvim-claude-pane-id-$sessionId"
 
 function Test-PaneAlive($id) {
     try {

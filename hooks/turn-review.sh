@@ -36,8 +36,8 @@ read -n1 -r choice < /dev/tty
 printf '\n' >&2
 [[ "$choice" == "n" || "$choice" == "N" ]] && exit 0
 
-SOCK="/tmp/nvim-claude.sock"
-PANE_ID_FILE="/tmp/nvim-claude-pane-id"
+SOCK="/tmp/nvim-claude-${SESSION_ID}.sock"
+PANE_ID_FILE="/tmp/nvim-claude-pane-id-${SESSION_ID}"
 
 pane_alive() {
   wezterm cli list --format json 2>/dev/null \
