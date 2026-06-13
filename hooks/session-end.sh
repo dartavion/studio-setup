@@ -90,7 +90,7 @@ if [ "$MODE" = "stop" ]; then
     D_CW1=$(echo "$DELTA" | jq '.cache_write_1h')
     IN=$((PREV_IN + D_IN));   OUT=$((PREV_OUT + D_OUT))
     CR=$((PREV_CR + D_CR));   CW5=$((PREV_CW5 + D_CW5)); CW1=$((PREV_CW1 + D_CW1))
-    jq -n \
+    jq -cn \
       --argjson in "$IN" --argjson out "$OUT" --argjson cr "$CR" \
       --argjson cw5 "$CW5" --argjson cw1 "$CW1" --argjson lines "$TOTAL_LINES" \
       '{input:$in, output:$out, cache_read:$cr, cache_write_5m:$cw5, cache_write_1h:$cw1, lines_read:$lines}' \
@@ -138,7 +138,7 @@ elif [ "$MODE" = "end" ]; then
   printf '  API list rates: %s  (not seat cost)\n' "$PRICING_MODEL" >&2
 
   LOG_FILE="$HOME/.claude/token-log.jsonl"
-  jq -n \
+  jq -cn \
     --argjson in "$IN" --argjson out "$OUT" --argjson cr "$CR" \
     --argjson cw5 "$CW5" --argjson cw1 "$CW1" \
     --arg sid    "$SESSION_ID" \

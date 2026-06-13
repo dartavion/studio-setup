@@ -1,15 +1,31 @@
-## ── oh-my-zsh ────────────────────────────────────────────────────────────────
+## ── zsh basics ───────────────────────────────────────────────────────────────
+# No framework: starship is the prompt, git aliases are defined below, and the
+# autosuggestions/syntax-highlighting plugins are sourced directly. This is
+# everything oh-my-zsh was actually providing here.
 
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"  # overridden by starship at end of file
+# Completion
+autoload -Uz compinit && compinit -i
+zstyle ':completion:*' menu select
+zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'   # case-insensitive
 
-plugins=(
-  git
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-)
+# History
+HISTFILE="$HOME/.zsh_history"
+HISTSIZE=50000
+SAVEHIST=50000
+setopt SHARE_HISTORY HIST_IGNORE_ALL_DUPS HIST_IGNORE_SPACE HIST_REDUCE_BLANKS INC_APPEND_HISTORY
 
-source "$ZSH/oh-my-zsh.sh"
+# Sane interactive options
+setopt AUTO_CD INTERACTIVE_COMMENTS
+bindkey -e   # emacs keybindings (Ctrl-A / Ctrl-E / Ctrl-R …)
+
+# zsh-autosuggestions (brew/apt). Candidate paths: Apple Silicon, Intel mac, Linux.
+for _f in \
+  /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /usr/local/share/zsh-autosuggestions/zsh-autosuggestions.zsh \
+  /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh; do
+  [ -f "$_f" ] && { source "$_f"; break; }
+done
+unset _f
 
 ## ── PATH helpers ─────────────────────────────────────────────────────────────
 
@@ -107,5 +123,16 @@ alias wt='wezterm start --cwd .'
 
 ## ── prompt ───────────────────────────────────────────────────────────────────
 
-# Starship overrides the oh-my-zsh theme — must be last
+# Starship prompt
 command -v starship &>/dev/null && eval "$(starship init zsh)"
+
+## ── syntax highlighting (must be the very last thing sourced) ─────────────────
+# zsh-syntax-highlighting wraps every zle widget, so it has to load after
+# everything else that defines widgets (fzf, starship, etc.).
+for _f in \
+  /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/local/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh \
+  /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh; do
+  [ -f "$_f" ] && { source "$_f"; break; }
+done
+unset _f
