@@ -149,6 +149,10 @@ install_plugins() {
         fi
       elif [ "$asset" = "main.js" ]; then
         echo "  warning: $id main.js download failed — plugin will not load"
+        if [ "${UPDATING_LOCK:-0}" = "1" ]; then
+          echo "  Error: $id main.js download failed during lock update. Aborting." >&2
+          return 1
+        fi
       fi
     done
   done
@@ -171,6 +175,10 @@ install_plugins() {
     fi
     if [ $theme_ok -eq 0 ]; then
       echo "  warning: Catppuccin theme download failed — vault will open without theme"
+      if [ "${UPDATING_LOCK:-0}" = "1" ]; then
+        echo "  Error: Catppuccin theme download failed during lock update. Aborting." >&2
+        return 1
+      fi
     else
       echo "  Catppuccin theme ok"
     fi
@@ -221,7 +229,11 @@ update_lock() {
   shopt -u nullglob
 
   # Re-download and recompute checksums
-  install_plugins "$BASE_VAULT"
+  if ! install_plugins "$BASE_VAULT"; then
+    echo "  Error: failed to install one or more plugins during lock update. Aborting." >&2
+    rm -f "$LOCK_FILE.tmp" "$CHECKSUM_FILE.tmp"
+    exit 1
+  fi
 
   printf "# SHA256 checksums for plugin main.js files at pinned versions\n" > "$CHECKSUM_FILE.tmp"
   printf "# Regenerate with: ./install.sh --update-lock\n\n" >> "$CHECKSUM_FILE.tmp"
