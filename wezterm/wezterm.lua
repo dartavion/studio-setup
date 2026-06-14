@@ -1,10 +1,10 @@
-local wezterm = require 'wezterm' ---@type Wezterm
-local mux     = wezterm.mux
-local act     = wezterm.action
-local config  = wezterm.config_builder() ---@type Config
+local wezterm    = require 'wezterm' ---@type Wezterm
+local mux        = wezterm.mux
+local act        = wezterm.action
+local config     = wezterm.config_builder() ---@type Config
 
-local home      = wezterm.home_dir
-local target    = wezterm.target_triple  -- e.g. "x86_64-pc-windows-msvc"
+local home       = wezterm.home_dir
+local target     = wezterm.target_triple -- e.g. "x86_64-pc-windows-msvc"
 local is_windows = target:find('windows') ~= nil
 
 -- ── Plugins ──────────────────────────────────────────────────────────────────
@@ -13,10 +13,10 @@ local is_windows = target:find('windows') ~= nil
 -- wezterm/plugins.lock; run wezterm/check-plugins.sh (or .ps1 on Windows) to detect drift (e.g. after
 -- wezterm.plugin.update_all()). require() can't pin to a ref, so this is
 -- drift/tamper detection, not true pinning — review upstream before updating.
-local tabline   = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
-local resurrect = wezterm.plugin.require 'https://github.com/MLFlexer/resurrect.wezterm'
-local wkswitch  = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
-local smart_ssh = wezterm.plugin.require 'https://github.com/DavidRR-F/smart_ssh.wezterm'
+local tabline    = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
+local resurrect  = wezterm.plugin.require 'https://github.com/MLFlexer/resurrect.wezterm'
+local wkswitch   = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
+local smart_ssh  = wezterm.plugin.require 'https://github.com/DavidRR-F/smart_ssh.wezterm'
 
 -- ── Shell & PATH ─────────────────────────────────────────────────────────────
 -- macOS/Linux only — on Windows, WezTerm uses the default shell (PowerShell or
@@ -35,59 +35,67 @@ end
 
 -- ── Appearance ───────────────────────────────────────────────────────────────
 
-config.color_scheme                 = 'Tokyo Night'
-config.font                         = wezterm.font('JetBrainsMono Nerd Font', { weight = 'Regular' })
-config.font_size                    = 13.0
-config.window_padding               = { left = 8, right = 8, top = 8, bottom = 8 }
-config.hide_tab_bar_if_only_one_tab = false
-config.tab_bar_at_bottom            = true
-config.use_fancy_tab_bar            = false
-config.window_decorations           = 'RESIZE'
+config.color_scheme                               = 'Ocean Dark (Gogh)'
+config.font                                       = wezterm.font('JetBrainsMono Nerd Font', { weight = 'Regular' })
+config.font_size                                  = 16.0
+config.window_padding                             = { left = 8, right = 8, top = 8, bottom = 8 }
+config.hide_tab_bar_if_only_one_tab               = false
+config.tab_bar_at_bottom                          = true
+config.use_fancy_tab_bar                          = false
+config.window_decorations                         = 'RESIZE'
 
 -- Quality-of-life
-config.inactive_pane_hsb            = { saturation = 0.8, brightness = 0.6 }  -- dim unfocused panes
-config.scrollback_lines             = 10000                                  -- default is a stingy 3500
-config.front_end                    = 'WebGpu'                               -- smoother GPU rendering
-config.window_background_opacity    = 0.96
-config.macos_window_background_blur  = 20    -- macOS only; ignored elsewhere
-config.audible_bell                 = 'Disabled'
+config.inactive_pane_hsb                          = { saturation = 0.8, brightness = 0.6 } -- dim unfocused panes
+config.scrollback_lines                           = 10000                                  -- default is a stingy 3500
+config.front_end                                  = 'WebGpu'                               -- smoother GPU rendering
+config.window_background_opacity                  = 0.96
+config.macos_window_background_blur               = 20                                     -- macOS only; ignored elsewhere
+config.audible_bell                               = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false
+config.window_background_opacity                  = 0.8
 
 -- ── Keybindings ──────────────────────────────────────────────────────────────
 -- Leader (tmux-style prefix). Press CMD+a, then the next key.
-config.leader = { key = 'a', mods = 'CMD', timeout_milliseconds = 1000 }
+config.leader                                     = { key = 'a', mods = 'CMD', timeout_milliseconds = 1000 }
 
-config.keys = {
+config.keys                                       = {
   -- Pane splits
-  { key = 'd', mods = 'CMD',       action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
-  { key = 'd', mods = 'CMD|SHIFT', action = act.SplitVertical   { domain = 'CurrentPaneDomain' } },
+  { key = 'd', mods = 'CMD',          action = act.SplitHorizontal { domain = 'CurrentPaneDomain' } },
+  { key = 'd', mods = 'CMD|SHIFT',    action = act.SplitVertical { domain = 'CurrentPaneDomain' } },
   -- Pane navigation (vim-style)
-  { key = 'h', mods = 'CMD|SHIFT', action = act.ActivatePaneDirection 'Left'  },
-  { key = 'l', mods = 'CMD|SHIFT', action = act.ActivatePaneDirection 'Right' },
-  { key = 'k', mods = 'CMD|SHIFT', action = act.ActivatePaneDirection 'Up'    },
-  { key = 'j', mods = 'CMD|SHIFT', action = act.ActivatePaneDirection 'Down'  },
-  { key = 'z', mods = 'CMD|SHIFT', action = act.TogglePaneZoomState            },
+  { key = 'h', mods = 'CMD|SHIFT',    action = act.ActivatePaneDirection 'Left' },
+  { key = 'l', mods = 'CMD|SHIFT',    action = act.ActivatePaneDirection 'Right' },
+  { key = 'k', mods = 'CMD|SHIFT',    action = act.ActivatePaneDirection 'Up' },
+  { key = 'j', mods = 'CMD|SHIFT',    action = act.ActivatePaneDirection 'Down' },
+  { key = 'z', mods = 'CMD|SHIFT',    action = act.TogglePaneZoomState },
   -- Tab management
-  { key = 'w', mods = 'CMD',       action = act.CloseCurrentPane { confirm = false } },
-  { key = 't', mods = 'CMD',       action = act.SpawnTab 'CurrentPaneDomain'         },
-  { key = '[', mods = 'CMD|SHIFT', action = act.ActivateTabRelative(-1)              },
-  { key = ']', mods = 'CMD|SHIFT', action = act.ActivateTabRelative(1)               },
+  { key = 'w', mods = 'CMD',          action = act.CloseCurrentPane { confirm = false } },
+  { key = 't', mods = 'CMD',          action = act.SpawnTab 'CurrentPaneDomain' },
+  { key = '[', mods = 'CMD|SHIFT',    action = act.ActivateTabRelative(-1) },
+  { key = ']', mods = 'CMD|SHIFT',    action = act.ActivateTabRelative(1) },
   -- Workspace picker (built-in)
-  { key = 'o', mods = 'CMD',       action = act.ShowLauncherArgs { flags = 'WORKSPACES' } },
+  { key = 'o', mods = 'CMD',          action = act.ShowLauncherArgs { flags = 'WORKSPACES' } },
 
   -- Plugin actions (leader-prefixed so they never shadow shell control keys)
   -- LEADER+s → fuzzy workspace switcher (zoxide-backed)
   { key = 's', mods = 'LEADER',       action = wkswitch.switch_workspace() },
   -- smart_ssh: pick a host from ~/.ssh/config
-  { key = 's', mods = 'LEADER|SHIFT', action = smart_ssh.tab()    },  -- new tab
-  { key = '5', mods = 'LEADER',       action = smart_ssh.hsplit() },  -- horizontal split
-  { key = "'", mods = 'LEADER',       action = smart_ssh.vsplit() },  -- vertical split
+  { key = 's', mods = 'LEADER|SHIFT', action = smart_ssh.tab() },    -- new tab
+  { key = '5', mods = 'LEADER',       action = smart_ssh.hsplit() }, -- horizontal split
+  { key = "'", mods = 'LEADER',       action = smart_ssh.vsplit() }, -- vertical split
   -- resurrect: LEADER+w saves current workspace state, LEADER+r restores
-  { key = 'w', mods = 'LEADER', action = wezterm.action_callback(function(win, pane)
+  {
+    key = 'w',
+    mods = 'LEADER',
+    action = wezterm.action_callback(function(win, pane)
       resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
       win:toast_notification('resurrect', 'workspace state saved', nil, 2000)
-  end) },
-  { key = 'r', mods = 'LEADER', action = wezterm.action_callback(function(win, pane)
+    end)
+  },
+  {
+    key = 'r',
+    mods = 'LEADER',
+    action = wezterm.action_callback(function(win, pane)
       resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
         local kind = string.match(id, '^([^/]+)')
         id = string.match(id, '([^/]+)$')
@@ -105,7 +113,8 @@ config.keys = {
           resurrect.window_state.restore_window(pane:window(), state, opts)
         end
       end)
-  end) },
+    end)
+  },
 
   -- Per-project workspace shortcuts go here, e.g.:
   -- { key = '1', mods = 'CMD', action = require('workspaces.my_project').switch_action() },
@@ -118,7 +127,7 @@ config.keys = {
 -- WezTerm Active Agent HUD — custom contextual component that dynamically
 -- detects the active process/agent running in your focused pane. Displays Claude Cost
 -- when active, GitHub Copilot when active, Neovim, or standard Shell status.
-local active_agent_hud = (function()
+local active_agent_hud                            = (function()
   local cached, last_check = '', 0
   local script = home .. '/.config/wezterm/scripts/today-cost.sh'
 
@@ -160,7 +169,7 @@ local active_agent_hud = (function()
   end
 end)()
 
-local tabline_y = { 'datetime', 'battery' }
+local tabline_y                                   = { 'datetime', 'battery' }
 if not is_windows then
   table.insert(tabline_y, 1, active_agent_hud)
 end
