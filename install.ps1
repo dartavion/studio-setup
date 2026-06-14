@@ -419,8 +419,10 @@ function Invoke-BaseInstall {
     $settingsPath = Join-Path $env:USERPROFILE ".claude\settings.json"
     if (-not (Test-Path $settingsPath)) { '{}' | Set-Content $settingsPath }
 
-    $settings = Get-Content $settingsPath | ConvertFrom-Json
-    if (-not $settings.hooks) {
+    $settings = Get-Content $settingsPath -Raw | ConvertFrom-Json
+    # StrictMode-safe existence check: `$settings.hooks` throws under
+    # Set-StrictMode -Version Latest when the property is absent (fresh '{}').
+    if (-not $settings.PSObject.Properties['hooks']) {
         $settings | Add-Member -MemberType NoteProperty -Name hooks -Value ([PSCustomObject]@{}) -Force
     }
 
