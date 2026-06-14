@@ -1,0 +1,121 @@
+name: nvim
+
+# Loads the real nvim config headless on both OSes and fails on the exact
+# breakage classes this repo hit: plugin config-validation errors at startup
+# (blink.cmp) and treesitter highlighter/parse failures on a new Neovim (0.12).
+# The Windows job additionally proves parsers compile with the kit-provided
+# compiler. Runs on nvim/installer changes, weekly (catches Neovim/plugin
+# drift even when the config is unchanged — the 0.12 failure mode), and on demand.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'dotfiles/nvim/**'
+      - 'install.sh'
+      - 'install.ps1'
+      - '.github/workflows/nvim.yml'
+      - '.github/scripts/nvim-load-check.lua'
+  schedule:
+    - cron: '0 11 * * 1'   # Monday 11:00 UTC
+
+jobs:
+  # ── Linux: load the config on the latest Neovim + assert health ───────────────
+  linux-load:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install latest Neovim + tree-sitter CLI
+        run: |
+          curl -fsSL -o /tmp/nvim.tar.gz https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
+          sudo tar -C /opt -xzf /tmp/nvim.tar.gz
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+          npm install -g tree-sitter-cli
+
+      - name: Place nvim config + restore pinned plugins
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nvim --version | head -1
+          ./install.sh
+
+      - name: Headless config load + health
+        run: |
+          d=$(mktemp -d); for ext in lua py ts md json yaml go rs sh; do : > "$d/a.$ext"; done
+          echo "# Title" > "$d/a.md"
+          out=$(nvim --headless "$d"/a.* -c "luafile .github/scripts/nvim-load-check.lua" 2>&1); rc=$?
+          echo "$out"
+          if echo "$out" | grep -qiE "Unexpected field|attempt to (call|index)|E[0-9]{3,}:|Error executing|LOAD_ERR"; then
+            echo "::error::nvim load surfaced errors"; exit 1
+          fi
+          echo "$out" | grep -q "LOAD_OK" || { echo "::error::nvim did not reach LOAD_OK"; exit 1; }
+          [ "$rc" -eq 0 ] || { echo "::error::nvim exited $rc"; exit 1; }
+          echo "Linux nvim load OK"
+
+      - name: treesitter checkhealth (informational)
+        run: |
+          nvim --headless -c "checkhealth nvim-treesitter" -c "w! /tmp/h.txt" -c "qa" >/dev/null 2>&1 || true
+          echo "── nvim-treesitter checkhealth ──"; cat /tmp/h.txt || true
+
+  # ── Windows: load the config + prove parsers compile with the kit's gcc ───────
+  windows-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install neovim + tree-sitter CLI + gcc via scoop (kit's Windows path)
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          # GH runner shells run elevated; scoop refuses admin unless told.
+          Invoke-Expression "& {$(Invoke-RestMethod get.scoop.sh)} -RunAsAdmin"
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          scoop install neovim tree-sitter gcc
+          tree-sitter --version
+          nvim --version | Select-Object -First 1
+
+      - name: Place nvim config + restore pinned plugins
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          .\install.ps1   # base install: copies lazy-lock, symlinks init.lua, runs Lazy! restore (nvim present)
+
+      - name: Compile parsers with the KIT'S compiler + assert artifact
+        shell: pwsh
+        run: |
+          # Reload PATH from the registry so scoop's persistent additions (gcc's
+          # bin) are visible — what a real user's next terminal sees after install.
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+          # Honest clean-box test: drop every compiler the runner preinstalls
+          # (mingw64, LLVM, Strawberry) so only the scoop-installed gcc remains.
+          $preinstalled = @('C:\mingw64\bin', 'C:\Program Files\LLVM\bin', 'C:\Strawberry\c\bin', 'C:\Strawberry\perl\bin')
+          $env:Path = (($env:Path -split ';') | Where-Object { $_ -and ($preinstalled -notcontains $_) }) -join ';'
+          $gcc = Get-Command gcc -ErrorAction SilentlyContinue
+          if (-not $gcc)                      { Write-Host "::error::no compiler after stripping — kit's scoop gcc is not on PATH"; exit 1 }
+          if ($gcc.Source -notlike "*scoop*") { Write-Host "::error::gcc resolved to $($gcc.Source), not the scoop-installed one"; exit 1 }
+          Write-Host "using kit-provided compiler: $($gcc.Source)"
+          nvim --headless -c "lua require('nvim-treesitter').install({'markdown','markdown_inline','lua'}):wait(300000)" -c "qa"
+          $parserDir = Join-Path $env:LOCALAPPDATA "nvim-data\site\parser"
+          if (-not (Test-Path $parserDir)) { Write-Host "::error::parser dir does not exist — nothing compiled"; exit 1 }
+          Get-ChildItem $parserDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          if (-not (Get-ChildItem $parserDir -Filter "markdown.*" -ErrorAction SilentlyContinue)) {
+            Write-Host "::error::markdown parser did not compile on Windows"; exit 1
+          }
+          Write-Host "treesitter parser compiled on Windows"
+
+      - name: Headless config load + health
+        shell: pwsh
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+          $d = Join-Path $env:TEMP "ftcheck"; New-Item -ItemType Directory -Path $d -Force | Out-Null
+          'lua','py','ts','md','json','yaml','go','rs','sh' | ForEach-Object { Set-Content (Join-Path $d "a.$_") "" }
+          Set-Content (Join-Path $d "a.md") "# Title"
+          $files = (Get-ChildItem $d).FullName
+          $out = (& nvim --headless @files -c "luafile .github/scripts/nvim-load-check.lua" 2>&1 | Out-String)
+          $rc = $LASTEXITCODE
+          Write-Host $out
+          if ($out -match 'Unexpected field|attempt to (call|index)|E[0-9]{3,}:|Error executing|LOAD_ERR') { Write-Host "::error::nvim load surfaced errors"; exit 1 }
+          if ($out -notmatch 'LOAD_OK') { Write-Host "::error::nvim did not reach LOAD_OK"; exit 1 }
+          if ($rc -ne 0) { Write-Host "::error::nvim exited $rc"; exit 1 }
+          Write-Host "Windows nvim load OK"

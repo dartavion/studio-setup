@@ -102,9 +102,18 @@ jobs:
           done < <(find . -name '*.sh' -not -path './.git/*')
           exit $fail
 
+      - name: Lua syntax gate (wezterm + nvim configs)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y luajit >/dev/null
+          fail=0
+          while IFS= read -r f; do
+            if luajit -b "$f" /dev/null 2>/tmp/luaerr; then echo "ok: $f"; else echo "::error file=$f::lua parse error"; cat /tmp/luaerr; fail=1; fi
+          done < <(find . -name '*.lua' -not -path './.git/*')
+          exit $fail
+
       - name: shellcheck (fail on error severity)
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y shellcheck >/dev/null
+          sudo apt-get install -y shellcheck >/dev/null
           mapfile -t files < <(find . -name '*.sh' -not -path './.git/*')
           echo "── full report (informational) ──"
           shellcheck "${files[@]}" || true
