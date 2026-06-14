@@ -1,0 +1,89 @@
+name: macOS
+
+# Linux CI proxies the shared shell logic and the OS-independent nvim config
+# load, but several macOS-only paths are untested by it: the Homebrew install
+# logic, brew formula/cask names, the BSD `date -v` branch in kpi-push.sh, the
+# clang/CLT assumption for parser compilation, and the jq-dependent hooks. This
+# job covers those on a real macOS runner. macOS minutes bill ~10x, so it is
+# scoped to relevant changes + weekly + dispatch, not every push.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'install.sh'
+      - 'dotfiles/**'
+      - 'hooks/**'
+      - 'scripts/**'
+      - '.github/workflows/macos.yml'
+      - '.github/scripts/nvim-load-check.lua'
+  schedule:
+    - cron: '0 12 * * 1'   # Monday 12:00 UTC
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Every brew formula/cask the installer names actually exists
+        run: |
+          fail=0
+          for f in $(sed -nE 's/.*install_formula +"([^"]+)".*/\1/p' install.sh); do
+            if brew info --formula "$f" >/dev/null 2>&1; then echo "ok formula: $f"; else echo "::error::brew formula not found: $f"; fail=1; fi
+          done
+          for c in $(sed -nE 's/.*install_cask +"[^"]+" +"([^"]+)".*/\1/p' install.sh); do
+            if brew info --cask "$c" >/dev/null 2>&1; then echo "ok cask: $c"; else echo "::error::brew cask not found: $c"; fail=1; fi
+          done
+          exit $fail
+
+      - name: jq is declared (hooks require it; macOS ships none)
+        run: |
+          grep -qE 'install_formula +"jq"' install.sh || { echo "::error::jq not in the macOS formula list but the hooks need it"; exit 1; }
+          echo "jq declared in install.sh"
+
+      - name: Install nvim toolchain (neovim, tree-sitter CLI, jq)
+        run: brew install neovim tree-sitter-cli jq
+
+      - name: Base install + assert artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          nvim --version | head -1
+          ./install.sh
+          fail=0
+          assert() { if [ -e "$2" ]; then echo "ok: $1"; else echo "::error::missing $1 ($2)"; fail=1; fi; }
+          assert "wezterm config" "$HOME/.config/wezterm/wezterm.lua"
+          assert "nvim init.lua"  "$HOME/.config/nvim/init.lua"
+          assert "nvim lazy-lock" "$HOME/.config/nvim/lazy-lock.json"
+          assert "claude settings" "$HOME/.claude/settings.json"
+          python3 -c "import json; json.load(open('$HOME/.claude/settings.json'))"
+          exit $fail
+
+      - name: Headless config load + health (clang/CLT parser compile)
+        run: |
+          d=$(mktemp -d); for ext in lua py ts md json yaml go rs sh; do : > "$d/a.$ext"; done
+          echo "# Title" > "$d/a.md"
+          out=$(nvim --headless "$d"/a.* -c "luafile .github/scripts/nvim-load-check.lua" 2>&1); rc=$?
+          echo "$out"
+          if echo "$out" | grep -qiE "Unexpected field|attempt to (call|index)|E[0-9]{3,}:|Error executing|LOAD_ERR"; then
+            echo "::error::nvim load surfaced errors"; exit 1
+          fi
+          echo "$out" | grep -q "LOAD_OK" || { echo "::error::nvim did not reach LOAD_OK"; exit 1; }
+          [ "$rc" -eq 0 ] || { echo "::error::nvim exited $rc"; exit 1; }
+          echo "macOS nvim load OK"
+
+      - name: Claude hook runs with jq (session-end cost calc)
+        run: |
+          printf '%s\n' '{"type":"assistant","message":{"id":"m1","model":"claude-opus-4-8","usage":{"input_tokens":1000,"output_tokens":500,"cache_read_input_tokens":0,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":0}}}}' > /tmp/t.jsonl
+          input='{"session_id":"citest","transcript_path":"/tmp/t.jsonl","cwd":"/tmp"}'
+          out=$(printf '%s' "$input" | bash hooks/session-end.sh stop 2>&1); rc=$?
+          echo "$out"
+          [ "$rc" -eq 0 ] || { echo "::error::session-end hook exited $rc"; exit 1; }
+          echo "$out" | grep -qE 'tokens.*\$[0-9]' || { echo "::error::hook did not produce a cost line (jq missing or pipeline broke)"; exit 1; }
+          echo "session-end hook OK"
+
+      - name: kpi-push.sh BSD date + jq snapshot
+        run: |
+          ./scripts/kpi-push.sh
+          python3 -c "import json; d=json.load(open('vault/reports/kpi-snapshot.json')); assert d['updated_at'] and d['window']; print('kpi snapshot valid:', d['window'])"
