@@ -323,6 +323,7 @@ full_install_wsl() {
   apt_install ripgrep
   apt_install unzip
   apt_install build-essential   # C compiler for nvim-treesitter (main) parser builds via the tree-sitter CLI
+  apt_install jq                # required by the Claude Code hooks (cost tracking, git-guard, etc.)
 
   if ! command -v node &>/dev/null; then
     echo "  installing Node.js via nvm..."
@@ -457,6 +458,7 @@ full_install_macos() {
   install_formula "node"
   install_formula "neovim"
   install_formula "tree-sitter-cli"   # nvim-treesitter (main branch) shells out to the tree-sitter CLI to compile parsers
+  install_formula "jq"                 # required by the Claude Code hooks (cost tracking, git-guard, etc.)
   install_formula "starship"
   install_formula "eza"
   install_formula "bat"
