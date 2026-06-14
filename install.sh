@@ -573,8 +573,24 @@ case "${1:-}" in
       cp "$HOME/.config/starship.toml" "$HOME/.config/starship.toml.bak.$(date +%Y%m%d%H%M%S)"
       echo "    backed up existing ~/.config/starship.toml"
     fi
-    ln -sf "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
-    echo "    ~> ~/.config/starship.toml"
+
+    # If starship is installed, prefer generating the tokyo-night preset locally.
+    # If generation fails (or starship missing), fall back to the repo-provided config.
+    if command -v starship >/dev/null 2>&1; then
+      if [ ! -e "$HOME/.config/starship.toml" ]; then
+        echo "    generating starship preset: tokyo-night -> ~/.config/starship.toml"
+        if ! starship preset tokyo-night -o "$HOME/.config/starship.toml" 2>/dev/null; then
+          echo "    warning: starship preset failed, copying repo default"
+          cp "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
+        fi
+        echo "    ~> ~/.config/starship.toml"
+      else
+        echo "    ~/.config/starship.toml already exists — kept"
+      fi
+    else
+      ln -sf "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
+      echo "    ~> ~/.config/starship.toml"
+    fi
 
     # neovim config
     mkdir -p "$HOME/.config/nvim"

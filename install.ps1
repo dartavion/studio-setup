@@ -333,7 +333,28 @@ function Invoke-BaseInstall {
     # Starship
     $configDir = Join-Path $env:USERPROFILE ".config"
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-    Set-Link (Join-Path $configDir "starship.toml") (Join-Path $RepoDir "dotfiles\starship.toml")
+
+    # If starship is installed, attempt to generate the tokyo-night preset into the user config.
+    # If generation fails (or starship is missing), fall back to symlinking the repo-provided config.
+    $starshipCmd = Get-Command starship -ErrorAction SilentlyContinue
+    $dest = Join-Path $configDir "starship.toml"
+    if ($starshipCmd) {
+        if (-not (Test-Path $dest)) {
+            Write-Host "    generating starship preset: tokyo-night -> $dest"
+            try {
+                & starship preset tokyo-night -o $dest
+                Write-Host "    -> $dest"
+            } catch {
+                Write-Host "    warning: starship preset failed, copying repo default"
+                Copy-Item (Join-Path $RepoDir "dotfiles\starship.toml") $dest -Force
+                Write-Host "    -> $dest"
+            }
+        } else {
+            Write-Host "    $dest already exists — kept"
+        }
+    } else {
+        Set-Link (Join-Path $configDir "starship.toml") (Join-Path $RepoDir "dotfiles\starship.toml")
+    }
 
     # Neovim
     $nvimDir = Join-Path $env:LOCALAPPDATA "nvim"
