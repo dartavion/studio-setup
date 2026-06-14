@@ -51,14 +51,19 @@ STATS=$(jq -s --slurpfile p "$PRICING" '
       elif ($lm | test("sonnet")) then $r.sonnet
       elif ($lm | test("haiku"))  then $r.haiku
       else {input:0, output:0, cache_read:0, cache_write_5m:0, cache_write_1h:0} end;
-  [ .[]
-    | select(.type=="assistant" and .message.usage != null)
-    | { model:          (.message.model // "unknown"),
-        input:          (.message.usage.input_tokens // 0),
-        output:         (.message.usage.output_tokens // 0),
-        cache_read:     (.message.usage.cache_read_input_tokens // 0),
-        cache_write_5m: (.message.usage.cache_creation.ephemeral_5m_input_tokens // 0),
-        cache_write_1h: (.message.usage.cache_creation.ephemeral_1h_input_tokens // 0) } ]
+  [ .[] | select(.type=="assistant" and .message.usage != null) ]
+  # Streaming/resume writes the same assistant message as several JSONL lines,
+  # each repeating the same message.id and usage. Collapse to one record per
+  # message (most-complete wins) so usage is not counted 2-3x. Lines lacking a
+  # message.id fall back to their own per-line uuid so they stay distinct.
+  | group_by(.message.id // .uuid)
+  | map(max_by(.message.usage.output_tokens // 0))
+  | map({ model:          (.message.model // "unknown"),
+          input:          (.message.usage.input_tokens // 0),
+          output:         (.message.usage.output_tokens // 0),
+          cache_read:     (.message.usage.cache_read_input_tokens // 0),
+          cache_write_5m: (.message.usage.cache_creation.ephemeral_5m_input_tokens // 0),
+          cache_write_1h: (.message.usage.cache_creation.ephemeral_1h_input_tokens // 0) })
   | group_by(.model)
   | map( .[0].model as $m | rate($m) as $r
          | { model:          $m,
