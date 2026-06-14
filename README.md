@@ -270,7 +270,7 @@ cd studio-setup
 
 **What gets installed:**
 - WezTerm, Obsidian, Node.js via winget
-- Neovim, starship, eza, bat, fzf, fd, zoxide, JetBrainsMono NF via Scoop
+- Neovim, tree-sitter (CLI), starship, eza, bat, fzf, fd, zoxide, JetBrainsMono NF via Scoop
 - Claude Code via npm (`--ignore-scripts`)
 - PSFzf module for fzf key bindings in PowerShell
 
@@ -400,7 +400,8 @@ Or trigger the workflow directly from the GitHub Actions tab — no local change
 - nvim-tree file explorer (`<leader>e`)
 - [smart-splits](https://github.com/mrjones2014/smart-splits.nvim) — `<C-h/j/k/l>` navigates nvim splits *and* WezTerm panes seamlessly; `<M-h/j/k/l>` resizes
 - [lazydev](https://github.com/folke/lazydev.nvim) + wezterm-types — autocomplete and inline docs when editing `wezterm.lua`
-- Treesitter highlighting (incl. Kotlin), nvim-cmp autocompletion, conform.nvim format-on-save
+- Treesitter highlighting (incl. Kotlin) via nvim-treesitter's `main` branch — required for Neovim 0.12+; parsers are built with the `tree-sitter` CLI (installed by the kit)
+- blink.cmp autocompletion, conform.nvim format-on-save
 - Gitsigns, Neogit (`<leader>gg`), which-key, indent guides, markdown preview
 
 ### Machine-specific config

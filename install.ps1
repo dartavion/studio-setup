@@ -211,6 +211,7 @@ function Invoke-FullInstall {
 
     # CLI tools via scoop
     Install-ScoopApp "neovim"
+    Install-ScoopApp "tree-sitter"   # nvim-treesitter (main branch) builds parsers with the tree-sitter CLI
     Install-ScoopApp "starship"
     Install-ScoopApp "eza"
     Install-ScoopApp "bat"
