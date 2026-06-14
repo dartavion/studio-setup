@@ -30,7 +30,7 @@ jobs:
           # GH runner shells run elevated; scoop refuses admin unless told.
           Invoke-Expression "& {$(Invoke-RestMethod get.scoop.sh)} -RunAsAdmin"
           $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
-          scoop install neovim tree-sitter
+          scoop install neovim tree-sitter gcc
           tree-sitter --version
           nvim --version | Select-Object -First 1
 
@@ -52,7 +52,17 @@ jobs:
       - name: Compile parsers + assert artifact lands
         shell: pwsh
         run: |
+          # Honest clean-box test: drop the runner's PREINSTALLED compilers
+          # (mingw64 + LLVM) from PATH so only the scoop-installed gcc — the one
+          # the kit actually provides — is available. If compilation still works,
+          # a real Windows user with just `install.ps1 -Full` is covered.
+          $preinstalled = @('C:\mingw64\bin', 'C:\Program Files\LLVM\bin')
+          $env:Path = (($env:Path -split ';') | Where-Object { $_ -and ($preinstalled -notcontains $_) }) -join ';'
           $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          foreach ($cc in 'cc','gcc','clang','cl') {
+            $c = Get-Command $cc -ErrorAction SilentlyContinue
+            Write-Host ("after strip, {0,-6}: {1}" -f $cc, $(if ($c) { $c.Source } else { '(absent)' }))
+          }
           nvim --headless -c "lua require('nvim-treesitter').install({'markdown','markdown_inline','lua'}):wait(300000)" -c "qa"
           $parserDir = Join-Path $env:LOCALAPPDATA "nvim-data\site\parser"
           Write-Host "parser dir: $parserDir"

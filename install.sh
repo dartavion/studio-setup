@@ -322,6 +322,7 @@ full_install_wsl() {
   apt_install fd-find     # installs as fdfind on Ubuntu — zshrc handles alias
   apt_install ripgrep
   apt_install unzip
+  apt_install build-essential   # C compiler for nvim-treesitter (main) parser builds via the tree-sitter CLI
 
   if ! command -v node &>/dev/null; then
     echo "  installing Node.js via nvm..."
