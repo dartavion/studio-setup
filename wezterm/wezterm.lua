@@ -47,7 +47,6 @@ config.window_decorations                         = 'RESIZE'
 config.inactive_pane_hsb                          = { saturation = 0.8, brightness = 0.6 } -- dim unfocused panes
 config.scrollback_lines                           = 10000                                  -- default is a stingy 3500
 config.front_end                                  = 'WebGpu'                               -- smoother GPU rendering
-config.window_background_opacity                  = 0.96
 config.macos_window_background_blur               = 20                                     -- macOS only; ignored elsewhere
 config.audible_bell                               = 'Disabled'
 config.adjust_window_size_when_changing_font_size = false

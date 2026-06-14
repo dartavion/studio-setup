@@ -43,6 +43,8 @@ cd studio-setup
 
 Installs and wires everything: WezTerm, Obsidian, shell config, Neovim, Claude Code hooks, and all Obsidian plugins. Only prerequisites: Homebrew on macOS (installed automatically if missing) and `gh auth login` run once.
 
+> **`--full` supports macOS and WSL only.** It detects WSL (apt) and otherwise assumes macOS (Homebrew); a native (non-WSL) Linux desktop is not a supported `--full` target and will hit the Homebrew path. On native Linux, use `./install.sh --vault-only` (works anywhere) and install the dev toolchain with your package manager.
+
 **One manual step after full install:** open Obsidian → Add Vault → select `vault/` → Community plugins → click **Trust**. This is an Obsidian security requirement that can't be scripted.
 
 See the [Windows](#windows) section for WSL vs PowerShell details.
@@ -78,7 +80,7 @@ The Dashboard opens automatically.
 Base config is symlinked from `wezterm/wezterm.lua` to `~/.config/wezterm/` by `install.sh`.
 
 **What you get:**
-- Tokyo Night color scheme, JetBrains Mono Nerd Font
+- Ocean Dark (Gogh) color scheme with a Tokyo Night status bar, JetBrains Mono Nerd Font
 - [tabline.wez](https://github.com/michaelbrusegard/tabline.wez) status bar — mode, workspace, per-tab cwd/process, RAM/CPU, clock, and **today's Claude Code spend** (read from `~/.claude/token-log.jsonl`; macOS/Linux only)
 - Vim-style pane navigation (`CMD+SHIFT+h/j/k/l`)
 - Pane splits (`CMD+D` horizontal, `CMD+SHIFT+D` vertical)
@@ -89,7 +91,6 @@ Base config is symlinked from `wezterm/wezterm.lua` to `~/.config/wezterm/` by `
 | Plugin | What it adds |
 |--------|--------------|
 | [tabline.wez](https://github.com/michaelbrusegard/tabline.wez) | Status bar + tab line |
-| [smart_workspace_switcher](https://github.com/MLFlexer/smart_workspace_switcher.wezterm) | Fuzzy `zoxide` workspace jump — `CMD+a` `s` |
 | [resurrect](https://github.com/MLFlexer/resurrect.wezterm) | Save/restore window + pane layout — `CMD+a` `w` saves, `CMD+a` `r` restores (auto-saves every 15 min) |
 | [smart_ssh](https://github.com/DavidRR-F/smart_ssh.wezterm) | SSH host picker from `~/.ssh/config` — `CMD+a` `Shift+s` (tab), `CMD+a` `5` (hsplit), `CMD+a` `'` (vsplit) |
 
@@ -391,7 +392,7 @@ Or trigger the workflow directly from the GitHub Actions tab — no local change
 - Starship prompt (initialized last)
 
 **Prompt (`starship.toml`)**
-- Catppuccin Mocha palette — matches Neovim and Obsidian
+- `install.sh` generates the `tokyo-night` starship preset on install (when starship is present). If preset generation fails or starship isn't installed yet, it falls back to the repo's `dotfiles/starship.toml` (a custom segmented theme). An existing `~/.config/starship.toml` is never overwritten.
 - Shows: directory, git branch + status, Node/Python/Go/Rust versions when in-project, command duration, time
 
 **Editor (`nvim/init.lua`)**
