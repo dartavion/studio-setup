@@ -212,6 +212,7 @@ function Invoke-FullInstall {
     # CLI tools via scoop
     Install-ScoopApp "neovim"
     Install-ScoopApp "tree-sitter"   # nvim-treesitter (main branch) builds parsers with the tree-sitter CLI
+    Install-ScoopApp "gcc"           # ...which shells out to a C compiler; Windows ships none by default
     Install-ScoopApp "starship"
     Install-ScoopApp "eza"
     Install-ScoopApp "bat"
