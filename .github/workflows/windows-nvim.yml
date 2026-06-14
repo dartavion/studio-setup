@@ -52,12 +52,15 @@ jobs:
       - name: Compile parsers + assert artifact lands
         shell: pwsh
         run: |
+          # Reload PATH from the registry so scoop's persistent additions (gcc's
+          # bin lives in scoop\apps\gcc\current\bin, added to the *user* PATH) are
+          # visible — exactly what a real user's next terminal sees after install.
+          $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
           # Honest clean-box test: drop EVERY compiler the runner preinstalls
-          # (mingw64, LLVM, Strawberry Perl's gcc) from PATH so only the
-          # scoop-installed gcc — the one the kit actually provides — remains.
+          # (mingw64, LLVM, Strawberry Perl's gcc) so only the scoop-installed gcc
+          # — the one the kit actually provides — remains.
           $preinstalled = @('C:\mingw64\bin', 'C:\Program Files\LLVM\bin', 'C:\Strawberry\c\bin', 'C:\Strawberry\perl\bin')
           $env:Path = (($env:Path -split ';') | Where-Object { $_ -and ($preinstalled -notcontains $_) }) -join ';'
-          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
           foreach ($cc in 'cc','gcc','clang','cl') {
             $c = Get-Command $cc -ErrorAction SilentlyContinue
             Write-Host ("after strip, {0,-6}: {1}" -f $cc, $(if ($c) { $c.Source } else { '(absent)' }))
