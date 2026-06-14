@@ -333,6 +333,15 @@ full_install_wsl() {
     echo "  node ok"
   fi
 
+  # nvm-installed node may not be on PATH in a fresh non-interactive shell
+  [ -s "$HOME/.nvm/nvm.sh" ] && . "$HOME/.nvm/nvm.sh"
+  if ! command -v tree-sitter &>/dev/null; then
+    echo "  installing tree-sitter CLI (nvim-treesitter main branch builds parsers with it)..."
+    npm install -g tree-sitter-cli
+  else
+    echo "  tree-sitter ok"
+  fi
+
   if ! command -v gh &>/dev/null; then
     echo "  installing gh CLI..."
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
@@ -446,6 +455,7 @@ full_install_macos() {
   install_formula "gh"
   install_formula "node"
   install_formula "neovim"
+  install_formula "tree-sitter-cli"   # nvim-treesitter (main branch) shells out to the tree-sitter CLI to compile parsers
   install_formula "starship"
   install_formula "eza"
   install_formula "bat"
@@ -686,6 +696,10 @@ case "${1:-}" in
         echo "    installing + pinning nvim plugins (first run may take a minute)…"
         nvim --headless "+Lazy! restore" +qa >/dev/null 2>&1 || \
           echo "    note: open nvim and run ':Lazy restore' if plugins aren't pinned"
+        # nvim-treesitter (main branch) compiles parsers via the tree-sitter CLI.
+        # --full installs it; a bare ./install.sh assumes prerequisites, so just warn.
+        command -v tree-sitter >/dev/null 2>&1 || \
+          echo "    note: 'tree-sitter' CLI not found — install it (brew install tree-sitter-cli) or treesitter highlighting won't build"
       fi
     fi
 

@@ -153,24 +153,32 @@ require("lazy").setup({
     end,
   },
 
-  -- treesitter
+  -- treesitter (main branch — required for Neovim 0.12+; the legacy `master`
+  -- branch is frozen upstream at 0.11 and crashes the highlighter on 0.12).
+  -- main has no `.configs` API: parsers are installed via install() and
+  -- highlighting is started per-buffer rather than via a `highlight` module.
   {
     "nvim-treesitter/nvim-treesitter",
-    branch = "master", -- pin to classic API; default branch is now the `main` rewrite (no .configs)
+    branch = "main",
     build  = ":TSUpdate",
-    opts   = {
-      ensure_installed = {
+    config = function()
+      require("nvim-treesitter").install({
         "lua", "vim", "vimdoc",
         "typescript", "javascript", "tsx", "kotlin", "html", "css",
         "python", "go", "rust",
         "json", "yaml", "toml", "markdown", "markdown_inline",
         "bash", "dockerfile",
-      },
-      highlight        = { enable = true },
-      indent           = { enable = true },
-    },
-    config = function(_, opts)
-      require("nvim-treesitter.configs").setup(opts)
+      })
+
+      -- main doesn't auto-enable highlighting; start it per buffer when a parser
+      -- exists for the filetype, and opt into treesitter-based indentation.
+      vim.api.nvim_create_autocmd("FileType", {
+        callback = function(args)
+          if pcall(vim.treesitter.start, args.buf) then
+            vim.bo[args.buf].indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+          end
+        end,
+      })
     end,
   },
 
@@ -255,7 +263,7 @@ require("lazy").setup({
     "saghen/blink.cmp",
     lazy = false, -- lazy loading is handled internally
     dependencies = "rafamadriz/friendly-snippets",
-    version = "*", -- use a release tag to download pre-built binaries
+    version = "v1.10.2", -- pinned release tag: ships pre-built fuzzy binaries (no Rust build) and honors the lockfile, unlike "*"
     opts = {
       keymap = {
         preset = "default",
@@ -265,7 +273,6 @@ require("lazy").setup({
         ["<S-Tab>"] = { "select_prev", "snippet_backward", "fallback" },
       },
       appearance = {
-        use_nio = true,
         nerd_font_variant = "mono",
       },
       sources = {
