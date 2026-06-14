@@ -1,0 +1,151 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Windows / PowerShell ──────────────────────────────────────────────────────
+  # Parses + lints every .ps1, then actually runs the base install on a real
+  # windows-latest runner and asserts the artifacts land. The base install is
+  # dependency-free (no winget/scoop/gh), so it runs end-to-end here.
+  powershell-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse all .ps1 (syntax gate)
+        shell: pwsh
+        run: |
+          $failed = $false
+          Get-ChildItem -Recurse -Filter *.ps1 -File | ForEach-Object {
+            $tokens = $null; $errs = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($_.FullName, [ref]$tokens, [ref]$errs)
+            if ($errs.Count -gt 0) {
+              $failed = $true
+              Write-Host "::error file=$($_.FullName)::parse errors"
+              $errs | ForEach-Object { Write-Host "  L$($_.Extent.StartLineNumber): $($_.Message)" }
+            } else {
+              Write-Host "ok: $($_.FullName)"
+            }
+          }
+          if ($failed) { exit 1 }
+
+      - name: PSScriptAnalyzer (fail on Error severity)
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          $all = Invoke-ScriptAnalyzer -Path . -Recurse
+          $all | Where-Object Severity -in 'Warning','Information' | Format-Table -AutoSize | Out-String | Write-Host
+          $errors = @($all | Where-Object Severity -eq 'Error')
+          if ($errors.Count -gt 0) {
+            $errors | Format-Table -AutoSize | Out-String | Write-Host
+            Write-Host "::error::PSScriptAnalyzer found $($errors.Count) error-severity finding(s)"
+            exit 1
+          }
+          Write-Host "PSScriptAnalyzer: no error-severity findings"
+
+      - name: Run base install + assert artifacts
+        shell: pwsh
+        run: |
+          .\install.ps1
+          $fail = $false
+          function Assert-Exists($p, $what) {
+            if (Test-Path $p) { Write-Host "ok: $what -> $p" }
+            else { Write-Host "::error::missing $what ($p)"; $script:fail = $true }
+          }
+          Assert-Exists (Join-Path $env:USERPROFILE ".config\wezterm\wezterm.lua") "wezterm config"
+          Assert-Exists (Join-Path $env:LOCALAPPDATA "nvim\init.lua")             "nvim init.lua"
+          Assert-Exists (Join-Path $env:LOCALAPPDATA "nvim\lazy-lock.json")       "nvim lazy-lock (pinned)"
+          Assert-Exists (Join-Path $env:USERPROFILE ".claude\settings.json")      "claude settings"
+          Assert-Exists (Join-Path $env:USERPROFILE ".claude\CLAUDE.md")          "global CLAUDE.md"
+          # settings.json must be valid JSON with hooks wired
+          $settings = Get-Content (Join-Path $env:USERPROFILE ".claude\settings.json") -Raw | ConvertFrom-Json
+          if (-not $settings.PSObject.Properties['hooks']) { Write-Host "::error::settings.json has no hooks"; $fail = $true }
+          if ($fail) { exit 1 }
+          Write-Host "base install artifacts OK"
+
+      - name: Base install merge path (pre-seeded settings.json)
+        shell: pwsh
+        run: |
+          # Re-run with an EXISTING settings.json so the StrictMode-sensitive merge
+          # branch (not the fresh Add-Member branch) is exercised.
+          $claude = Join-Path $env:USERPROFILE ".claude"
+          New-Item -ItemType Directory -Path $claude -Force | Out-Null
+          '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo preexisting"}]}]}}' |
+            Set-Content (Join-Path $claude "settings.json")
+          .\install.ps1
+          $s = Get-Content (Join-Path $claude "settings.json") -Raw | ConvertFrom-Json
+          $cmds = @($s.hooks.Stop | ForEach-Object { $_.hooks } | ForEach-Object { $_.command })
+          if ($cmds -notcontains 'echo preexisting') { Write-Host "::error::merge dropped the pre-existing hook"; exit 1 }
+          if (-not ($cmds | Where-Object { $_ -match 'turn-review' })) { Write-Host "::error::merge did not add the kit hook"; exit 1 }
+          Write-Host "merge path OK -> Stop: $($cmds -join ', ')"
+
+  # ── Linux / bash (proxy for macOS + WSL shell path) ───────────────────────────
+  # shellcheck + bash -n on every script, then runs the base install with gh
+  # treated as authenticated (GH_TOKEN), exercising the dotfile/symlink/hooks
+  # logic that the WSL and macOS paths share.
+  shell-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: bash -n (syntax gate)
+        run: |
+          fail=0
+          while IFS= read -r f; do
+            if bash -n "$f"; then echo "ok: $f"; else echo "::error file=$f::syntax error"; fail=1; fi
+          done < <(find . -name '*.sh' -not -path './.git/*')
+          exit $fail
+
+      - name: shellcheck (fail on error severity)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y shellcheck >/dev/null
+          mapfile -t files < <(find . -name '*.sh' -not -path './.git/*')
+          echo "── full report (informational) ──"
+          shellcheck "${files[@]}" || true
+          echo "── gate: error severity only ──"
+          shellcheck --severity=error "${files[@]}"
+
+      - name: Validate JSON files
+        run: |
+          for f in versions.lock dotfiles/nvim/lazy-lock.json hooks/pricing.json \
+                   wezterm/plugins.lock vault/reports/kpi-snapshot.json; do
+            python3 -c "import json,sys; json.load(open('$f')); print('ok:', '$f')"
+          done
+
+      - name: Run base install + assert artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # makes gh_available true so the dotfile path runs
+        run: |
+          ./install.sh
+          fail=0
+          assert() { if [ -e "$2" ]; then echo "ok: $1 -> $2"; else echo "::error::missing $1 ($2)"; fail=1; fi; }
+          assert "wezterm config" "$HOME/.config/wezterm/wezterm.lua"
+          assert "zshrc"          "$HOME/.zshrc"
+          assert "nvim init.lua"  "$HOME/.config/nvim/init.lua"
+          assert "nvim lazy-lock" "$HOME/.config/nvim/lazy-lock.json"
+          assert "claude settings" "$HOME/.claude/settings.json"
+          assert "global CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+          python3 -c "import json; json.load(open('$HOME/.claude/settings.json')); print('settings.json valid JSON')"
+          exit $fail
+
+      - name: Base install merge path (pre-seeded settings.json)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.claude"
+          echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo preexisting"}]}]}}' > "$HOME/.claude/settings.json"
+          ./install.sh
+          python3 - "$HOME/.claude/settings.json" <<'PY'
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          cmds = [h.get("command") for e in s["hooks"]["Stop"] for h in e.get("hooks", [])]
+          assert "echo preexisting" in cmds, f"merge dropped pre-existing hook: {cmds}"
+          assert any("turn-review" in (c or "") for c in cmds), f"merge did not add kit hook: {cmds}"
+          print("merge path OK -> Stop:", cmds)
+          PY
