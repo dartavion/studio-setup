@@ -87,8 +87,17 @@ jobs:
                   out.write(body)
           EOF
 
-      - name: Create GitHub Issue if updates detected
+      - name: Check for existing open issue
         if: steps.check.outputs.has_updates == 'true'
+        id: existing_issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          count=$(gh issue list --state open --search "🆕 Installer script updates available in:title" --json number -q 'length' 2>/dev/null || echo "0")
+          echo "open_issues=$count" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Issue if updates detected
+        if: steps.check.outputs.has_updates == 'true' && steps.existing_issue.outputs.open_issues == '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

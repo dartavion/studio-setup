@@ -17,7 +17,7 @@ Dev environment kit for designers, engineers, and AI builders.
 
 Clone and run the full install (recommended):
 
-```bash
+```text
 git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended)
 # or: git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
@@ -32,7 +32,7 @@ Prerequisites: Homebrew on macOS (installed automatically if missing) and `gh au
 
 ### Engineers and AI builders — full setup
 
-```bash
+```text
 git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended)
 # or: git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
@@ -53,7 +53,7 @@ See the [Windows](#windows) section for WSL vs PowerShell details.
 
 If you only want the Obsidian vault and plugins without the full developer toolchain, run the vault-only path:
 
-```bash
+```text
 git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
 ./install.sh --vault-only        # macOS / Linux / WSL
@@ -302,7 +302,7 @@ Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in
 
 The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks on that package.
 
-Pre-commit hooks and CI secret scanning
+### Pre-commit hooks and CI secret scanning
 
 This repository includes a pre-commit configuration to run detect-secrets and basic hygiene hooks locally, and a GitHub Action that scans pushes and pull requests for potential secrets. To opt in locally:
 
@@ -313,7 +313,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-Generate a .secrets.baseline (recommended)
+### Generate a .secrets.baseline (recommended)
 
 If detect-secrets reports false positives you want to accept, generate and audit a baseline locally, review it, then commit the baseline so CI accepts the intentional exceptions:
 

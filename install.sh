@@ -253,7 +253,9 @@ update_lock() {
       echo "$name=$sum" >> "$CHECKSUM_FILE"
       echo "  $name -> $sum"
     else
-      echo "  warning: failed to fetch $name to update checksum"
+      echo "  Error: failed to fetch $name to update checksum. Aborting." >&2
+      rm -f "$tmp_file"
+      exit 1
     fi
     rm -f "$tmp_file"
   done
@@ -328,7 +330,7 @@ full_install_wsl() {
 
   if ! command -v starship &>/dev/null; then
     echo "  installing starship..."
-    verify_and_run_script "installer-starship" "https://starship.rs/install.sh" sh -s -- --yes
+    verify_and_run_script "installer-starship" "https://starship.rs/install.sh" sh --yes
   else
     echo "  starship ok"
   fi
