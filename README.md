@@ -13,13 +13,20 @@ Dev environment kit for designers, engineers, and AI builders.
 
 ---
 
-## Pick your path
+## Quick start
 
-**Not sure which to choose?**
+Clone and run the full install (recommended):
 
-- You write code every day → **full setup**. Terminal, editor, AI tooling, and the Obsidian vault — all wired together out of the box.
-- You live in Figma, Notion, or slides → **vault-only**. Just the Obsidian workspace: KPI dashboard, project tracking, daily notes. Nothing else touches your machine.
-- Somewhere in between → start with vault-only. Run `./install.sh --full` later and it picks up without overwriting anything.
+```bash
+git clone git@github.com:dartavion/studio-setup.git  # SSH (recommended)
+# or: git clone https://github.com/dartavion/studio-setup.git
+cd studio-setup
+./install.sh --full              # macOS / WSL
+.\install.ps1 -Full              # Windows PowerShell
+```
+
+Prerequisites: Homebrew on macOS (installed automatically if missing) and `gh auth login` run once.
+
 
 ---
 
@@ -42,11 +49,10 @@ See the [Windows](#windows) section for WSL vs PowerShell details.
 
 ---
 
-### Designers and product folks — just Obsidian
+### Vault-only (minimal)
 
-Prerequisites: [Obsidian](https://obsidian.md) and a terminal (two commands). No `gh` CLI or SSH keys required.
+If you only want the Obsidian vault and plugins without the full developer toolchain, run the vault-only path:
 
-**Option 1 — git clone:**
 ```bash
 git clone https://github.com/dartavion/studio-setup.git
 cd studio-setup
@@ -54,14 +60,14 @@ cd studio-setup
 .\install.ps1 -VaultOnly         # Windows PowerShell
 ```
 
-**Option 2 — no git:** [Download ZIP](https://github.com/dartavion/studio-setup/archive/refs/heads/main.zip), unzip it, open a terminal in the folder, then run the install command above.
+Or download the ZIP from GitHub, unzip, and run the same command. The script downloads pinned plugin releases and verifies checksums for main plugin binaries.
 
-The script downloads all plugins directly from GitHub releases at pinned, verified versions. Then:
+After install:
 
-1. Open Obsidian → **Add Vault** → select the `vault/` folder
-2. Settings → Community plugins → click **Trust** for each plugin
+1. Open Obsidian → Add Vault → select the `vault/` folder
+2. Settings → Community plugins → click "Trust" for each plugin
 
-The Dashboard opens automatically. KPI cards, tasks, and project tables render immediately.
+The Dashboard opens automatically.
 
 ---
 
@@ -295,6 +301,19 @@ wsl ./install.sh --update-lock
 Plugin versions are pinned in `versions.lock` and SHA256 checksums are stored in `checksums.sha256`. On every install, each downloaded `main.js` is verified against its stored checksum — a mismatch aborts the install with a clear error. `manifest.json` and `styles.css` are downloaded at the pinned version but are not checksum-verified; `manifest.json` is inert metadata and `styles.css` is display-only.
 
 The npm install for Claude Code uses `--ignore-scripts` to block malicious postinstall hooks on that package.
+
+Pre-commit hooks and CI secret scanning
+
+This repository includes a pre-commit configuration to run detect-secrets and basic hygiene hooks locally, and a GitHub Action that scans pushes and pull requests for potential secrets. To opt in locally:
+
+```bash
+pip install pre-commit
+pre-commit install
+# optional: run all checks now
+pre-commit run --all-files
+```
+
+See SECURITY.md for details and guidance on handling findings.
 
 ### Keeping plugins updated
 
