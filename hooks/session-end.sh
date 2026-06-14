@@ -11,6 +11,10 @@
 MODE="${1:-end}"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PRICING="$HOOK_DIR/pricing.json"
+# Live cost of in-progress sessions. `stop` overwrites one file per session;
+# `end` deletes it after writing the historical log. today-cost.sh unions the
+# log with these so the HUD reflects the active session, not just finished ones.
+LIVE_DIR="$HOME/.claude/live-cost"
 
 INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
@@ -82,6 +86,11 @@ read -r IN OUT CR CW5 CW1 COST < <(
 CW=$((CW5 + CW1))
 
 if [ "$MODE" = "stop" ]; then
+  # Persist the current cumulative cost so the HUD can see this live session.
+  mkdir -p "$LIVE_DIR"
+  jq -cn --arg sid "$SESSION_ID" --arg ended "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --argjson cost "$COST" \
+    '{session_id:$sid, ended_at:$ended, cost_usd:$cost}' > "$LIVE_DIR/${SESSION_ID}.json" 2>/dev/null
+
   printf '▸ tokens  in=%-9s out=%-8s cr=%-10s cw=%-10s  ~%s\n' \
     "$(fmt_num "$IN")" "$(fmt_num "$OUT")" "$(fmt_num "$CR")" "$(fmt_num "$CW")" "$(fmt_usd "$COST")" >&2
 
@@ -121,4 +130,7 @@ elif [ "$MODE" = "end" ]; then
       session_id:$sid, project:$proj, branch:$branch, ended_at:$ended,
       cost_usd:$cost, models:$models}' \
     >> "$LOG_FILE" 2>/dev/null
+
+  # Session is now in the historical log — drop its live sidecar.
+  rm -f "$LIVE_DIR/${SESSION_ID}.json"
 fi
