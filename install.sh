@@ -149,6 +149,10 @@ install_plugins() {
         fi
       elif [ "$asset" = "main.js" ]; then
         echo "  warning: $id main.js download failed — plugin will not load"
+        if [ "${UPDATING_LOCK:-0}" = "1" ]; then
+          echo "  Error: $id main.js download failed during lock update. Aborting." >&2
+          return 1
+        fi
       fi
     done
   done
@@ -171,6 +175,10 @@ install_plugins() {
     fi
     if [ $theme_ok -eq 0 ]; then
       echo "  warning: Catppuccin theme download failed — vault will open without theme"
+      if [ "${UPDATING_LOCK:-0}" = "1" ]; then
+        echo "  Error: Catppuccin theme download failed during lock update. Aborting." >&2
+        return 1
+      fi
     else
       echo "  Catppuccin theme ok"
     fi
@@ -211,7 +219,7 @@ update_lock() {
     first=0
   done
   versions_json+="}}"
-  echo "$versions_json" | python3 -m json.tool > "$LOCK_FILE"
+  echo "$versions_json" | python3 -m json.tool > "$LOCK_FILE.tmp"
 
   # Wipe existing main.js files so stale copies can't be checksummed on download failure
   shopt -s nullglob
@@ -221,16 +229,20 @@ update_lock() {
   shopt -u nullglob
 
   # Re-download and recompute checksums
-  install_plugins "$BASE_VAULT"
+  if ! install_plugins "$BASE_VAULT"; then
+    echo "  Error: failed to install one or more plugins during lock update. Aborting." >&2
+    rm -f "$LOCK_FILE.tmp" "$CHECKSUM_FILE.tmp"
+    exit 1
+  fi
 
-  printf "# SHA256 checksums for plugin main.js files at pinned versions\n" > "$CHECKSUM_FILE"
-  printf "# Regenerate with: ./install.sh --update-lock\n\n" >> "$CHECKSUM_FILE"
+  printf "# SHA256 checksums for plugin main.js files at pinned versions\n" > "$CHECKSUM_FILE.tmp"
+  printf "# Regenerate with: ./install.sh --update-lock\n\n" >> "$CHECKSUM_FILE.tmp"
   shopt -s nullglob
   for dir in "$BASE_VAULT/.obsidian/plugins"/*/; do
     local id
     id="$(basename "$dir")"
     [ -f "$dir/main.js" ] && \
-      echo "$id=$(shasum -a 256 "$dir/main.js" | awk '{print $1}')" >> "$CHECKSUM_FILE"
+      echo "$id=$(shasum -a 256 "$dir/main.js" | awk '{print $1}')" >> "$CHECKSUM_FILE.tmp"
   done
   shopt -u nullglob
 
@@ -243,20 +255,26 @@ update_lock() {
     "installer-scoop:https://get.scoop.sh"
   )
 
-  printf "\n# SHA256 checksums for external installer scripts\n" >> "$CHECKSUM_FILE"
+  printf "\n# SHA256 checksums for external installer scripts\n" >> "$CHECKSUM_FILE.tmp"
   for entry in "${installers[@]}"; do
     local name="${entry%%:*}" url="${entry#*:}"
     local tmp_file sum
     tmp_file="$(mktemp)"
     if curl -fsSL "$url" -o "$tmp_file"; then
       sum="$(shasum -a 256 "$tmp_file" | awk '{print $1}')"
-      echo "$name=$sum" >> "$CHECKSUM_FILE"
+      echo "$name=$sum" >> "$CHECKSUM_FILE.tmp"
       echo "  $name -> $sum"
     else
-      echo "  warning: failed to fetch $name to update checksum"
+      echo "  Error: failed to fetch $name to update checksum. Aborting." >&2
+      rm -f "$tmp_file"
+      rm -f "$LOCK_FILE.tmp" "$CHECKSUM_FILE.tmp"
+      exit 1
     fi
     rm -f "$tmp_file"
   done
+
+  mv "$LOCK_FILE.tmp" "$LOCK_FILE"
+  mv "$CHECKSUM_FILE.tmp" "$CHECKSUM_FILE"
 
   echo ""
   echo "==> Lock updated. Review the diff, then commit versions.lock and checksums.sha256."
@@ -328,7 +346,7 @@ full_install_wsl() {
 
   if ! command -v starship &>/dev/null; then
     echo "  installing starship..."
-    verify_and_run_script "installer-starship" "https://starship.rs/install.sh" sh -s -- --yes
+    verify_and_run_script "installer-starship" "https://starship.rs/install.sh" sh --yes
   else
     echo "  starship ok"
   fi

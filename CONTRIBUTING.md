@@ -1,4 +1,4 @@
-Contributing
+# Contributing
 
 Thanks for contributing! A few ground rules to keep the project secure and easy to maintain.
 

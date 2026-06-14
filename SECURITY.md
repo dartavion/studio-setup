@@ -1,4 +1,4 @@
-Security and secret-scanning
+# Security and secret-scanning
 
 This repository includes automated secret-scanning to help avoid accidentally committing credentials or private keys. The checks are intentionally conservative — they will flag anything that looks like a secret so you can review and explicitly ignore false positives.
 
