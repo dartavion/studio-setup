@@ -38,6 +38,7 @@ verify_checksum() {
   local expected actual
   expected="$(stored_checksum "$id")"
   [ -z "$expected" ] && return 0  # no stored checksum yet — first run
+  [ "${UPDATING_LOCK:-0}" = "1" ] && return 0  # updating lock — skip validation of old hash
   actual="$(shasum -a 256 "$file" | awk '{print $1}')"
   if [ "$actual" != "$expected" ]; then
     echo ""
@@ -48,6 +49,37 @@ verify_checksum() {
     exit 1
   fi
 }
+
+verify_and_run_script() {
+  local id="$1" url="$2" runner="$3"
+  shift 3
+  local expected actual temp_file
+  expected="$(stored_checksum "$id")"
+  if [ -z "$expected" ]; then
+    echo "  !! No stored checksum found for $id"
+    exit 1
+  fi
+  temp_file="$(mktemp)"
+  if curl -fsSL "$url" -o "$temp_file"; then
+    actual="$(shasum -a 256 "$temp_file" | awk '{print $1}')"
+    if [ "$actual" != "$expected" ]; then
+      echo ""
+      echo "  !! SECURITY VIOLATION: Checksum mismatch for external installer: $id"
+      echo "     URL:      $url"
+      echo "     Expected: $expected"
+      echo "     Actual:   $actual"
+      echo "     Aborting execution for safety."
+      rm -f "$temp_file"
+      exit 1
+    fi
+    "$runner" "$temp_file" "$@"
+    rm -f "$temp_file"
+  else
+    echo "  !! Failed to download installer from $url"
+    exit 1
+  fi
+}
+
 
 # ── Plugin manifest: id -> github_repo ───────────────────────────────────────
 
@@ -150,6 +182,7 @@ install_plugins() {
 # ── Update lockfile ───────────────────────────────────────────────────────────
 
 update_lock() {
+  export UPDATING_LOCK=1
   echo "==> Updating versions.lock and checksums.sha256"
   echo ""
   echo "  SECURITY NOTICE"
@@ -201,6 +234,30 @@ update_lock() {
   done
   shopt -u nullglob
 
+  # Re-download installer scripts and compute their checksums
+  echo "==> Updating installer script checksums"
+  local installers=(
+    "installer-nvm:https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh"
+    "installer-starship:https://starship.rs/install.sh"
+    "installer-zoxide:https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh"
+    "installer-scoop:https://get.scoop.sh"
+  )
+
+  printf "\n# SHA256 checksums for external installer scripts\n" >> "$CHECKSUM_FILE"
+  for entry in "${installers[@]}"; do
+    local name="${entry%%:*}" url="${entry#*:}"
+    local tmp_file sum
+    tmp_file="$(mktemp)"
+    if curl -fsSL "$url" -o "$tmp_file"; then
+      sum="$(shasum -a 256 "$tmp_file" | awk '{print $1}')"
+      echo "$name=$sum" >> "$CHECKSUM_FILE"
+      echo "  $name -> $sum"
+    else
+      echo "  warning: failed to fetch $name to update checksum"
+    fi
+    rm -f "$tmp_file"
+  done
+
   echo ""
   echo "==> Lock updated. Review the diff, then commit versions.lock and checksums.sha256."
 }
@@ -250,7 +307,7 @@ full_install_wsl() {
 
   if ! command -v node &>/dev/null; then
     echo "  installing Node.js via nvm..."
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+    verify_and_run_script "installer-nvm" "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh" bash
     export NVM_DIR="$HOME/.nvm"
     source "$NVM_DIR/nvm.sh"
     nvm install --lts
@@ -271,7 +328,7 @@ full_install_wsl() {
 
   if ! command -v starship &>/dev/null; then
     echo "  installing starship..."
-    curl -sS https://starship.rs/install.sh | sh -s -- --yes
+    verify_and_run_script "installer-starship" "https://starship.rs/install.sh" sh -s -- --yes
   else
     echo "  starship ok"
   fi
@@ -291,7 +348,7 @@ full_install_wsl() {
 
   if ! command -v zoxide &>/dev/null; then
     echo "  installing zoxide..."
-    curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
+    verify_and_run_script "installer-zoxide" "https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh" sh
   else
     echo "  zoxide ok"
   fi
@@ -573,8 +630,24 @@ case "${1:-}" in
       cp "$HOME/.config/starship.toml" "$HOME/.config/starship.toml.bak.$(date +%Y%m%d%H%M%S)"
       echo "    backed up existing ~/.config/starship.toml"
     fi
-    ln -sf "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
-    echo "    ~> ~/.config/starship.toml"
+
+    # If starship is installed, prefer generating the tokyo-night preset locally.
+    # If generation fails (or starship missing), fall back to the repo-provided config.
+    if command -v starship >/dev/null 2>&1; then
+      if [ ! -e "$HOME/.config/starship.toml" ]; then
+        echo "    generating starship preset: tokyo-night -> ~/.config/starship.toml"
+        if ! starship preset tokyo-night -o "$HOME/.config/starship.toml" 2>/dev/null; then
+          echo "    warning: starship preset failed, copying repo default"
+          cp "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
+        fi
+        echo "    ~> ~/.config/starship.toml"
+      else
+        echo "    ~/.config/starship.toml already exists — kept"
+      fi
+    else
+      ln -sf "$REPO_DIR/dotfiles/starship.toml" "$HOME/.config/starship.toml"
+      echo "    ~> ~/.config/starship.toml"
+    fi
 
     # neovim config
     mkdir -p "$HOME/.config/nvim"

@@ -1,17 +1,17 @@
 {
-  "plugins": {
-    "catppuccin-obsidian":       "1.0.6",
-    "calendar":                  "2.0.0-beta.2",
-    "codeblock-customizer":      "1.4.7",
-    "dataview":                  "0.5.70",
-    "homepage":                  "4.4.4",
-    "obsidian-excalidraw-plugin":"2.23.12",
-    "obsidian-icon-folder":      "2.14.7",
-    "obsidian-kanban":           "2.0.51",
-    "obsidian-style-settings":   "1.0.9",
-    "periodic-notes":            "1.0.0-beta.3",
-    "quickadd":                  "2.12.3",
-    "smart-connections":         "4.5.3",
-    "templater-obsidian":        "2.22.1"
-  }
+    "plugins": {
+        "catppuccin-obsidian": "2.0.3",
+        "calendar": "2.0.0-beta.2",
+        "dataview": "0.5.70",
+        "homepage": "4.4.4",
+        "obsidian-kanban": "2.0.51",
+        "obsidian-style-settings": "1.0.9",
+        "quickadd": "2.13.1",
+        "periodic-notes": "1.0.0-beta.3",
+        "templater-obsidian": "2.22.1",
+        "obsidian-excalidraw-plugin": "2.23.12",
+        "smart-connections": "4.5.3",
+        "obsidian-icon-folder": "2.14.7",
+        "codeblock-customizer": "1.4.7"
+    }
 }

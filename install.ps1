@@ -63,6 +63,32 @@ function Assert-Checksum($id, $file) {
     }
 }
 
+function Invoke-VerifiedScript($id, $url) {
+    $expected = Get-StoredChecksum $id
+    if (-not $expected) {
+        Write-Error "No stored checksum found for $id"
+        exit 1
+    }
+    $tempFile = Join-Path $env:TEMP "install-$id.ps1"
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $tempFile -UseBasicParsing -ErrorAction Stop
+        $actual = (Get-FileHash $tempFile -Algorithm SHA256).Hash.ToLower()
+        if ($actual -ne $expected) {
+            Write-Host ""
+            Write-Host "  !! SECURITY VIOLATION: Checksum mismatch for external installer: $id"
+            Write-Host "     URL:      $url"
+            Write-Host "     Expected: $expected"
+            Write-Host "     Got:      $actual"
+            Write-Host "     Aborting execution for safety."
+            exit 1
+        }
+        . $tempFile
+    } finally {
+        if (Test-Path $tempFile) { Remove-Item $tempFile -Force }
+    }
+}
+
+
 # ── symlink helper (falls back to copy if Developer Mode not enabled) ─────────
 
 function Set-Link($target, $source) {
@@ -168,7 +194,7 @@ function Invoke-FullInstall {
     if (-not (Test-Command scoop)) {
         Write-Host "  installing Scoop..."
         Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-        Invoke-RestMethod get.scoop.sh | Invoke-Expression
+        Invoke-VerifiedScript "installer-scoop" "https://get.scoop.sh"
     } else {
         Write-Host "  scoop ok"
     }
@@ -333,7 +359,28 @@ function Invoke-BaseInstall {
     # Starship
     $configDir = Join-Path $env:USERPROFILE ".config"
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
-    Set-Link (Join-Path $configDir "starship.toml") (Join-Path $RepoDir "dotfiles\starship.toml")
+
+    # If starship is installed, attempt to generate the tokyo-night preset into the user config.
+    # If generation fails (or starship is missing), fall back to symlinking the repo-provided config.
+    $starshipCmd = Get-Command starship -ErrorAction SilentlyContinue
+    $dest = Join-Path $configDir "starship.toml"
+    if ($starshipCmd) {
+        if (-not (Test-Path $dest)) {
+            Write-Host "    generating starship preset: tokyo-night -> $dest"
+            try {
+                & starship preset tokyo-night -o $dest
+                Write-Host "    -> $dest"
+            } catch {
+                Write-Host "    warning: starship preset failed, copying repo default"
+                Copy-Item (Join-Path $RepoDir "dotfiles\starship.toml") $dest -Force
+                Write-Host "    -> $dest"
+            }
+        } else {
+            Write-Host "    $dest already exists — kept"
+        }
+    } else {
+        Set-Link (Join-Path $configDir "starship.toml") (Join-Path $RepoDir "dotfiles\starship.toml")
+    }
 
     # Neovim
     $nvimDir = Join-Path $env:LOCALAPPDATA "nvim"
