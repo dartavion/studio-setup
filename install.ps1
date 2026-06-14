@@ -388,6 +388,23 @@ function Invoke-BaseInstall {
     New-Item -ItemType Directory -Path $nvimDir -Force | Out-Null
     Set-Link (Join-Path $nvimDir "init.lua") (Join-Path $RepoDir "dotfiles\nvim\init.lua")
 
+    # nvim plugin lockfile — COPIED (not symlinked) so a later ':Lazy update'
+    # writes the user's own copy, never the repo. Pins plugins to the versions
+    # the kit was tested against (parity with install.sh).
+    $lazyLock = Join-Path $RepoDir "dotfiles\nvim\lazy-lock.json"
+    if (Test-Path $lazyLock) {
+        Copy-Item $lazyLock (Join-Path $nvimDir "lazy-lock.json") -Force
+        Write-Host "    -> $nvimDir\lazy-lock.json (pinned)"
+        if (Test-Command nvim) {
+            Write-Host "    installing + pinning nvim plugins (first run may take a minute)..."
+            nvim --headless "+Lazy! restore" +qa 2>$null
+            # nvim-treesitter (main) builds parsers via the tree-sitter CLI; -Full installs it.
+            if (-not (Test-Command tree-sitter)) {
+                Write-Host "    note: 'tree-sitter' CLI not found — run install.ps1 -Full (or 'scoop install tree-sitter'), else treesitter highlighting won't build"
+            }
+        }
+    }
+
     # ── Global CLAUDE.md — Epistemic Honesty ─────────────────────────────────
     $claudeDir = Join-Path $env:USERPROFILE ".claude"
     New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null

@@ -60,13 +60,30 @@ jobs:
           }
           Assert-Exists (Join-Path $env:USERPROFILE ".config\wezterm\wezterm.lua") "wezterm config"
           Assert-Exists (Join-Path $env:LOCALAPPDATA "nvim\init.lua")             "nvim init.lua"
+          Assert-Exists (Join-Path $env:LOCALAPPDATA "nvim\lazy-lock.json")       "nvim lazy-lock (pinned)"
           Assert-Exists (Join-Path $env:USERPROFILE ".claude\settings.json")      "claude settings"
           Assert-Exists (Join-Path $env:USERPROFILE ".claude\CLAUDE.md")          "global CLAUDE.md"
           # settings.json must be valid JSON with hooks wired
           $settings = Get-Content (Join-Path $env:USERPROFILE ".claude\settings.json") -Raw | ConvertFrom-Json
-          if (-not $settings.hooks) { Write-Host "::error::settings.json has no hooks"; $fail = $true }
+          if (-not $settings.PSObject.Properties['hooks']) { Write-Host "::error::settings.json has no hooks"; $fail = $true }
           if ($fail) { exit 1 }
           Write-Host "base install artifacts OK"
+
+      - name: Base install merge path (pre-seeded settings.json)
+        shell: pwsh
+        run: |
+          # Re-run with an EXISTING settings.json so the StrictMode-sensitive merge
+          # branch (not the fresh Add-Member branch) is exercised.
+          $claude = Join-Path $env:USERPROFILE ".claude"
+          New-Item -ItemType Directory -Path $claude -Force | Out-Null
+          '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo preexisting"}]}]}}' |
+            Set-Content (Join-Path $claude "settings.json")
+          .\install.ps1
+          $s = Get-Content (Join-Path $claude "settings.json") -Raw | ConvertFrom-Json
+          $cmds = @($s.hooks.Stop | ForEach-Object { $_.hooks } | ForEach-Object { $_.command })
+          if ($cmds -notcontains 'echo preexisting') { Write-Host "::error::merge dropped the pre-existing hook"; exit 1 }
+          if (-not ($cmds | Where-Object { $_ -match 'turn-review' })) { Write-Host "::error::merge did not add the kit hook"; exit 1 }
+          Write-Host "merge path OK -> Stop: $($cmds -join ', ')"
 
   # ── Linux / bash (proxy for macOS + WSL shell path) ───────────────────────────
   # shellcheck + bash -n on every script, then runs the base install with gh
@@ -111,7 +128,24 @@ jobs:
           assert "wezterm config" "$HOME/.config/wezterm/wezterm.lua"
           assert "zshrc"          "$HOME/.zshrc"
           assert "nvim init.lua"  "$HOME/.config/nvim/init.lua"
+          assert "nvim lazy-lock" "$HOME/.config/nvim/lazy-lock.json"
           assert "claude settings" "$HOME/.claude/settings.json"
           assert "global CLAUDE.md" "$HOME/.claude/CLAUDE.md"
           python3 -c "import json; json.load(open('$HOME/.claude/settings.json')); print('settings.json valid JSON')"
           exit $fail
+
+      - name: Base install merge path (pre-seeded settings.json)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p "$HOME/.claude"
+          echo '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"echo preexisting"}]}]}}' > "$HOME/.claude/settings.json"
+          ./install.sh
+          python3 - "$HOME/.claude/settings.json" <<'PY'
+          import json, sys
+          s = json.load(open(sys.argv[1]))
+          cmds = [h.get("command") for e in s["hooks"]["Stop"] for h in e.get("hooks", [])]
+          assert "echo preexisting" in cmds, f"merge dropped pre-existing hook: {cmds}"
+          assert any("turn-review" in (c or "") for c in cmds), f"merge did not add kit hook: {cmds}"
+          print("merge path OK -> Stop:", cmds)
+          PY
