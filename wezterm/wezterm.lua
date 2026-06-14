@@ -115,30 +115,45 @@ config.keys = {
 -- tabline owns format-tab-title and update-status (replaces the manual
 -- update-right-status / format-tab-title handlers).
 
--- Claude Code spend today — custom component sourced from the kit's
--- ~/.claude/token-log.jsonl (written by the session-end hook). This is *spend*,
--- not subscription rate-limit quota. bash+jq, so non-Windows only. Shells out at
--- most once / 60s and caches between calls.
-local claude_spend = (function()
+-- WezTerm Active Agent HUD — custom contextual component that dynamically
+-- detects the active process/agent running in your focused pane. Displays Claude Cost
+-- when active, GitHub Copilot when active, Neovim, or standard Shell status.
+local active_agent_hud = (function()
   local cached, last_check = '', 0
   local script = home .. '/.config/wezterm/scripts/today-cost.sh'
   return function()
-    local now = os.time()
-    if now - last_check >= 60 then
-      last_check = now
-      local ok, success, stdout = pcall(wezterm.run_child_process, { '/bin/bash', script })
-      if ok and success and stdout then
-        cached = (stdout:gsub('%s+$', ''))
+    local win = wezterm.active_window()
+    if not win then return '' end
+    local pane = win:active_pane()
+    if not pane then return '' end
+
+    local title = (pane:get_title() or ''):lower()
+    local proc = (pane:get_foreground_process_name() or ''):lower()
+
+    if proc:find('claude') or title:find('claude') then
+      local now = os.time()
+      if now - last_check >= 30 then
+        last_check = now
+        local ok, success, stdout = pcall(wezterm.run_child_process, { '/bin/bash', script })
+        if ok and success and stdout then
+          cached = (stdout:gsub('%s+$', ''))
+        end
       end
+      local cost = cached ~= '' and cached or '$0.00'
+      return (wezterm.nerdfonts.md_robot or '🤖') .. ' Claude (' .. cost .. ')'
+    elseif proc:find('copilot') or title:find('copilot') or title:find('gh-copilot') then
+      return (wezterm.nerdfonts.md_github or '🐙') .. ' Copilot'
+    elseif proc:find('nvim') or title:find('nvim') or title:find('vim') then
+      return (wezterm.nerdfonts.custom_neovim or '📝') .. ' Neovim'
+    else
+      return (wezterm.nerdfonts.md_terminal or '💻') .. ' Shell'
     end
-    if cached == '' then return '' end
-    return (wezterm.nerdfonts.md_robot_outline or 'cc') .. ' ' .. cached
   end
 end)()
 
 local tabline_y = { 'datetime', 'battery' }
 if not is_windows then
-  table.insert(tabline_y, 1, claude_spend)
+  table.insert(tabline_y, 1, active_agent_hud)
 end
 
 tabline.setup {
