@@ -273,7 +273,6 @@ require("lazy").setup({
         ["<S-Tab>"] = { "select_prev", "snippet_backward", "fallback" },
       },
       appearance = {
-        use_nio = true,
         nerd_font_variant = "mono",
       },
       sources = {
