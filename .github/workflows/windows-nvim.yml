@@ -1,0 +1,66 @@
+name: Windows nvim parsers
+
+# Finding 2: nvim-treesitter's main branch builds parsers with the tree-sitter
+# CLI, which shells out to a C compiler. Windows ships none by default. This job
+# installs the kit's Windows toolchain (scoop neovim + tree-sitter), reports
+# which compilers exist, then actually compiles a parser and asserts the
+# artifact lands — proving (or disproving) that a clean Windows install works.
+#
+# Heavier than the per-push CI (scoop installs + parser compilation), so it is
+# scoped to nvim/installer changes + manual dispatch rather than every push.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'dotfiles/nvim/**'
+      - 'install.ps1'
+      - '.github/workflows/windows-nvim.yml'
+
+jobs:
+  treesitter-build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install neovim + tree-sitter CLI via scoop (kit's Windows path)
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
+          # GH runner shells run elevated; scoop refuses admin unless told.
+          Invoke-Expression "& {$(Invoke-RestMethod get.scoop.sh)} -RunAsAdmin"
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          scoop install neovim tree-sitter
+          tree-sitter --version
+          nvim --version | Select-Object -First 1
+
+      - name: Report available C compilers (the Finding 2 question)
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          foreach ($cc in 'cc','gcc','clang','cl','zig') {
+            $c = Get-Command $cc -ErrorAction SilentlyContinue
+            Write-Host ("compiler {0,-6}: {1}" -f $cc, $(if ($c) { $c.Source } else { '(absent)' }))
+          }
+
+      - name: Place nvim config + restore pinned plugins
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          .\install.ps1   # base install: copies lazy-lock, symlinks init.lua, runs Lazy! restore (nvim present)
+
+      - name: Compile parsers + assert artifact lands
+        shell: pwsh
+        run: |
+          $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
+          nvim --headless -c "lua require('nvim-treesitter').install({'markdown','markdown_inline','lua'}):wait(300000)" -c "qa"
+          $parserDir = Join-Path $env:LOCALAPPDATA "nvim-data\site\parser"
+          Write-Host "parser dir: $parserDir"
+          if (Test-Path $parserDir) {
+            Get-ChildItem $parserDir | ForEach-Object { Write-Host "  $($_.Name)" }
+          } else {
+            Write-Host "::error::parser dir does not exist — nothing compiled"; exit 1
+          }
+          $md = Get-ChildItem $parserDir -Filter "markdown.*" -ErrorAction SilentlyContinue
+          if (-not $md) { Write-Host "::error::markdown parser did not compile on Windows"; exit 1 }
+          Write-Host "treesitter parser compiled on Windows: $($md.Name)"
