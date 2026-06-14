@@ -3,6 +3,7 @@ repos:
     rev: v1.6.7
     hooks:
       - id: detect-secrets
+        args: ['--exclude-files', 'checksums.sha256|lazy-lock.json|.*\.template.*']
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
