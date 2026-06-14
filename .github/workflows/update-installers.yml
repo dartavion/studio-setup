@@ -1,0 +1,98 @@
+name: Check Installer Updates
+
+on:
+  schedule:
+    - cron: '0 10 * * 1'   # every Monday at 10am UTC (just after plugins update)
+  workflow_dispatch:        # allow manual trigger from GitHub UI
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-installers:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check installer script updates
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 - <<'EOF'
+          import urllib.request, hashlib, os
+
+          installers = {
+            "installer-nvm": "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh",
+            "installer-starship": "https://starship.rs/install.sh",
+            "installer-zoxide": "https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh",
+            "installer-scoop": "https://get.scoop.sh",
+          }
+
+          stored = {}
+          with open("checksums.sha256") as f:
+              for line in f:
+                  line = line.strip()
+                  if line and not line.startswith("#") and "=" in line:
+                      k, v = line.split("=", 1)
+                      stored[k] = v
+
+          updated = []
+          for name, url in installers.items():
+              expected = stored.get(name)
+              if not expected:
+                  print(f"Warning: No stored hash found for {name}")
+                  continue
+
+              try:
+                  req = urllib.request.Request(
+                      url, 
+                      headers={'User-Agent': 'Mozilla/5.0'}
+                  )
+                  with urllib.request.urlopen(req) as response:
+                      data = response.read()
+                  actual = hashlib.sha256(data).hexdigest()
+
+                  if actual != expected:
+                      print(f"Installer update detected for {name}!")
+                      print(f"  Old hash: {expected}")
+                      print(f"  New hash: {actual}")
+                      updated.append({
+                          "name": name,
+                          "url": url,
+                          "old_hash": expected,
+                          "new_hash": actual
+                      })
+                  else:
+                      print(f"Installer {name} is up to date.")
+              except Exception as e:
+                  print(f"Error fetching {name} from {url}: {e}")
+
+          has_updates = len(updated) > 0
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"has_updates={'true' if has_updates else 'false'}\n")
+              
+          if has_updates:
+              body = "The following external installer scripts have updated upstream:\n\n"
+              for item in updated:
+                  body += f"### {item['name']}\n"
+                  body += f"- **URL**: {item['url']}\n"
+                  body += f"- **Old Hash**: `{item['old_hash']}`\n"
+                  body += f"- **New Hash**: `{item['new_hash']}`\n\n"
+                  body += "To update these hashes, you can run `./install.sh --update-lock` locally, review the diff, and commit the changes.\n\n"
+              
+              with open("issue_body.md", "w") as out:
+                  out.write(body)
+          EOF
+
+      - name: Create GitHub Issue if updates detected
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "🆕 Installer script updates available" \
+            --label "dependencies" \
+            --body-file issue_body.md
