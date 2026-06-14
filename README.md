@@ -313,7 +313,23 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-See SECURITY.md for details and guidance on handling findings.
+Generate a .secrets.baseline (recommended)
+
+If detect-secrets reports false positives you want to accept, generate and audit a baseline locally, review it, then commit the baseline so CI accepts the intentional exceptions:
+
+```bash
+# Install detect-secrets (user install recommended)
+python3 -m pip install --user detect-secrets
+# Create a baseline of current findings
+detect-secrets scan -o .secrets.baseline
+# Interactively audit findings and remove false positives
+detect-secrets audit .secrets.baseline
+# Review the file, then commit it when ready
+git add .secrets.baseline
+git commit -m "chore: add .secrets.baseline (false positives acknowledged)"
+```
+
+Review SECURITY.md for more details and guidance on handling findings.
 
 ### Keeping plugins updated
 
