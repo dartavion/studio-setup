@@ -3,7 +3,6 @@
   "plugins": {
     "https://github.com/michaelbrusegard/tabline.wez": "5e148f08f134e317bbfe75b26f8a23b0102cb621",
     "https://github.com/MLFlexer/resurrect.wezterm": "65cbbbf6d2c76f3e36af7610a356fc190fcb6147",
-    "https://github.com/MLFlexer/smart_workspace_switcher.wezterm": "d502c8df682af072adc0555e9c41429b00934577",
     "https://github.com/DavidRR-F/smart_ssh.wezterm": "8ad528e73d627b68c3625d5d4827a31a21e320d0",
     "https://github.com/chrisgve/dev.wezterm": "40dea555a1112e1d353a61646647c739a3ce112f"
   }

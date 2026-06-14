@@ -15,7 +15,6 @@ local is_windows = target:find('windows') ~= nil
 -- drift/tamper detection, not true pinning — review upstream before updating.
 local tabline    = wezterm.plugin.require 'https://github.com/michaelbrusegard/tabline.wez'
 local resurrect  = wezterm.plugin.require 'https://github.com/MLFlexer/resurrect.wezterm'
-local wkswitch   = wezterm.plugin.require 'https://github.com/MLFlexer/smart_workspace_switcher.wezterm'
 local smart_ssh  = wezterm.plugin.require 'https://github.com/DavidRR-F/smart_ssh.wezterm'
 
 -- ── Shell & PATH ─────────────────────────────────────────────────────────────
@@ -77,8 +76,7 @@ config.keys                                       = {
   { key = 'o', mods = 'CMD',          action = act.ShowLauncherArgs { flags = 'WORKSPACES' } },
 
   -- Plugin actions (leader-prefixed so they never shadow shell control keys)
-  -- LEADER+s → fuzzy workspace switcher (zoxide-backed)
-  { key = 's', mods = 'LEADER',       action = wkswitch.switch_workspace() },
+  -- Workspace switching uses the built-in launcher (CMD+o, defined above).
   -- smart_ssh: pick a host from ~/.ssh/config
   { key = 's', mods = 'LEADER|SHIFT', action = smart_ssh.tab() },    -- new tab
   { key = '5', mods = 'LEADER',       action = smart_ssh.hsplit() }, -- horizontal split
