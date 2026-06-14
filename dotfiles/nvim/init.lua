@@ -263,7 +263,7 @@ require("lazy").setup({
     "saghen/blink.cmp",
     lazy = false, -- lazy loading is handled internally
     dependencies = "rafamadriz/friendly-snippets",
-    version = "*", -- use a release tag to download pre-built binaries
+    version = "v1.10.2", -- pinned release tag: ships pre-built fuzzy binaries (no Rust build) and honors the lockfile, unlike "*"
     opts = {
       keymap = {
         preset = "default",
