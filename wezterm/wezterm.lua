@@ -121,10 +121,19 @@ config.keys = {
 local active_agent_hud = (function()
   local cached, last_check = '', 0
   local script = home .. '/.config/wezterm/scripts/today-cost.sh'
+
+  local function get_focused_pane()
+    if not wezterm.gui then return nil end
+    for _, win in ipairs(wezterm.gui.get_all_windows()) do
+      if win:is_focused() then
+        return win:active_pane()
+      end
+    end
+    return nil
+  end
+
   return function()
-    local win = wezterm.active_window()
-    if not win then return '' end
-    local pane = win:active_pane()
+    local pane = get_focused_pane()
     if not pane then return '' end
 
     local title = (pane:get_title() or ''):lower()
