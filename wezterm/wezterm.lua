@@ -124,7 +124,7 @@ local active_agent_hud = (function()
 
   local function get_focused_pane()
     if not wezterm.gui then return nil end
-    for _, win in ipairs(wezterm.gui.get_all_windows()) do
+    for _, win in ipairs(wezterm.gui.gui_windows()) do
       if win:is_focused() then
         return win:active_pane()
       end
