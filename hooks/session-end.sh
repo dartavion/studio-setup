@@ -1,9 +1,16 @@
 #!/bin/bash
-# Called with "stop" (per-turn) or "end" (session close)
-# Rates are read from pricing.json in the same directory — edit that file to switch models.
+# Called with "stop" (per-turn) or "end" (session close).
+# Per-model API list rates live in pricing.json (same dir). Cost is computed
+# per-model from each assistant message's .message.model, so mixed-model
+# sessions (e.g. Opus main loop + Haiku subagents) are priced correctly.
+#
+# Reads the whole transcript on every call (a single jq pass — ~40ms even on a
+# 5MB transcript). The earlier delta/temp-file accumulation was dropped: it was
+# the source of past double-counting bugs and the perf saving was negligible.
 
 MODE="${1:-end}"
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PRICING="$HOOK_DIR/pricing.json"
 
 INPUT=$(cat)
 SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
@@ -11,131 +18,94 @@ TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // empty')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 
 [ -z "$SESSION_ID" ] && exit 0
-
-TEMP_FILE="/tmp/claude-tokens-${SESSION_ID}.json"
+[ -f "$PRICING" ] || {
+  printf '  session-end: pricing.json not found in %s — cost tracking disabled\n' "$HOOK_DIR" >&2
+  exit 0
+}
 
 fmt_num() {
   echo "$1" | awk '{n=$1; r=""; while(n>999){r=sprintf(",%03d%s",n%1000,r); n=int(n/1000)}; print n r}'
 }
-
-fmt_usd() {
-  awk -v v="$1" 'BEGIN { printf "$%.4f", v }'
-}
-
-read -r PRICING_MODEL R_IN R_OUT R_CR R_CW5 R_CW1 < <(python3 -c "
-import json
-p = json.load(open('$HOOK_DIR/pricing.json'))
-r = p['rates_usd_per_mtok']
-print(p.get('model','unknown'), r['input'], r['output'], r['cache_read'], r['cache_write_5m'], r['cache_write_1h'])
-" 2>/dev/null) || true
-
-if [ -z "$R_IN" ]; then
-  printf '  session-end: could not load pricing.json from %s — cost tracking disabled\n' "$HOOK_DIR" >&2
-  exit 0
-fi
-
-calc_cost() {
-  awk -v tok_in="$1" -v tok_out="$2" -v cr="$3" -v cw5="$4" -v cw1="$5" \
-      -v r_in="$R_IN" -v r_out="$R_OUT" -v r_cr="$R_CR" -v r_cw5="$R_CW5" -v r_cw1="$R_CW1" '
-    BEGIN { printf "%.4f", (tok_in*r_in + tok_out*r_out + cr*r_cr + cw5*r_cw5 + cw1*r_cw1) / 1000000 }
-  '
-}
-
-# Sum usage from line $2 onward (1-based). Reads only new lines, not the full transcript.
-sum_usage_from() {
-  local path="$1"
-  local from_line="${2:-1}"
-  [ -z "$path" ] || [ ! -f "$path" ] && return
-  tail -n "+${from_line}" "$path" | jq -s '{
-    input:          ([.[] | select(.type=="assistant" and .message.usage!=null) | .message.usage.input_tokens                             // 0] | add // 0),
-    output:         ([.[] | select(.type=="assistant" and .message.usage!=null) | .message.usage.output_tokens                           // 0] | add // 0),
-    cache_read:     ([.[] | select(.type=="assistant" and .message.usage!=null) | .message.usage.cache_read_input_tokens                  // 0] | add // 0),
-    cache_write_5m: ([.[] | select(.type=="assistant" and .message.usage!=null) | .message.usage.cache_creation.ephemeral_5m_input_tokens // 0] | add // 0),
-    cache_write_1h: ([.[] | select(.type=="assistant" and .message.usage!=null) | .message.usage.cache_creation.ephemeral_1h_input_tokens // 0] | add // 0)
-  }' 2>/dev/null
-}
+fmt_usd() { awk -v v="$1" 'BEGIN { printf "$%.4f", v }'; }
 
 find_transcript() {
   [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ] && { echo "$TRANSCRIPT_PATH"; return; }
   find "$HOME/.claude/projects" -name "${SESSION_ID}.jsonl" 2>/dev/null | head -1
 }
 
+TPATH=$(find_transcript)
+{ [ -z "$TPATH" ] || [ ! -f "$TPATH" ]; } && exit 0
+
+# Single jq pass: group assistant-message usage by model, price each model from
+# pricing.json (substring match on the model id), and emit grand totals plus a
+# per-model breakdown as one compact JSON object.
+STATS=$(jq -s --slurpfile p "$PRICING" '
+  def rate($m):
+    ($p[0].models) as $r
+    | ($m | ascii_downcase) as $lm
+    | if   ($lm | test("opus"))   then $r.opus
+      elif ($lm | test("sonnet")) then $r.sonnet
+      elif ($lm | test("haiku"))  then $r.haiku
+      else {input:0, output:0, cache_read:0, cache_write_5m:0, cache_write_1h:0} end;
+  [ .[]
+    | select(.type=="assistant" and .message.usage != null)
+    | { model:          (.message.model // "unknown"),
+        input:          (.message.usage.input_tokens // 0),
+        output:         (.message.usage.output_tokens // 0),
+        cache_read:     (.message.usage.cache_read_input_tokens // 0),
+        cache_write_5m: (.message.usage.cache_creation.ephemeral_5m_input_tokens // 0),
+        cache_write_1h: (.message.usage.cache_creation.ephemeral_1h_input_tokens // 0) } ]
+  | group_by(.model)
+  | map( .[0].model as $m | rate($m) as $r
+         | { model:          $m,
+             input:          (map(.input)|add),
+             output:         (map(.output)|add),
+             cache_read:     (map(.cache_read)|add),
+             cache_write_5m: (map(.cache_write_5m)|add),
+             cache_write_1h: (map(.cache_write_1h)|add) }
+         | .cost = ( (.input*$r.input + .output*$r.output + .cache_read*$r.cache_read
+                      + .cache_write_5m*$r.cache_write_5m + .cache_write_1h*$r.cache_write_1h) / 1000000 ) )
+  | { models:         .,
+      input:          (map(.input)|add // 0),
+      output:         (map(.output)|add // 0),
+      cache_read:     (map(.cache_read)|add // 0),
+      cache_write_5m: (map(.cache_write_5m)|add // 0),
+      cache_write_1h: (map(.cache_write_1h)|add // 0),
+      cost:           (map(.cost)|add // 0) }
+' "$TPATH" 2>/dev/null)
+
+[ -z "$STATS" ] && exit 0
+
+read -r IN OUT CR CW5 CW1 COST < <(
+  echo "$STATS" | jq -r '"\(.input) \(.output) \(.cache_read) \(.cache_write_5m) \(.cache_write_1h) \(.cost)"'
+)
+CW=$((CW5 + CW1))
+
 if [ "$MODE" = "stop" ]; then
-  TPATH=$(find_transcript)
-  [ -z "$TPATH" ] && exit 0
-
-  TOTAL_LINES=$(wc -l < "$TPATH")
-  PREV_LINES=0
-  PREV_IN=0; PREV_OUT=0; PREV_CR=0; PREV_CW5=0; PREV_CW1=0
-
-  if [ -f "$TEMP_FILE" ]; then
-    PREV=$(cat "$TEMP_FILE")
-    PREV_LINES=$(echo "$PREV" | jq '.lines_read // 0')
-    PREV_IN=$(echo "$PREV"   | jq '.input // 0')
-    PREV_OUT=$(echo "$PREV"  | jq '.output // 0')
-    PREV_CR=$(echo "$PREV"   | jq '.cache_read // 0')
-    PREV_CW5=$(echo "$PREV"  | jq '.cache_write_5m // 0')
-    PREV_CW1=$(echo "$PREV"  | jq '.cache_write_1h // 0')
-  fi
-
-  if [ "$TOTAL_LINES" -le "$PREV_LINES" ]; then
-    IN=$PREV_IN; OUT=$PREV_OUT; CR=$PREV_CR; CW5=$PREV_CW5; CW1=$PREV_CW1
-  else
-    DELTA=$(sum_usage_from "$TPATH" "$((PREV_LINES + 1))")
-    [ -z "$DELTA" ] && exit 0
-    D_IN=$(echo "$DELTA"  | jq '.input')
-    D_OUT=$(echo "$DELTA" | jq '.output')
-    D_CR=$(echo "$DELTA"  | jq '.cache_read')
-    D_CW5=$(echo "$DELTA" | jq '.cache_write_5m')
-    D_CW1=$(echo "$DELTA" | jq '.cache_write_1h')
-    IN=$((PREV_IN + D_IN));   OUT=$((PREV_OUT + D_OUT))
-    CR=$((PREV_CR + D_CR));   CW5=$((PREV_CW5 + D_CW5)); CW1=$((PREV_CW1 + D_CW1))
-    jq -cn \
-      --argjson in "$IN" --argjson out "$OUT" --argjson cr "$CR" \
-      --argjson cw5 "$CW5" --argjson cw1 "$CW1" --argjson lines "$TOTAL_LINES" \
-      '{input:$in, output:$out, cache_read:$cr, cache_write_5m:$cw5, cache_write_1h:$cw1, lines_read:$lines}' \
-      > "$TEMP_FILE"
-  fi
-
-  COST=$(calc_cost "$IN" "$OUT" "$CR" "$CW5" "$CW1")
-  CW=$((CW5 + CW1))
   printf '▸ tokens  in=%-9s out=%-8s cr=%-10s cw=%-10s  ~%s\n' \
     "$(fmt_num "$IN")" "$(fmt_num "$OUT")" "$(fmt_num "$CR")" "$(fmt_num "$CW")" "$(fmt_usd "$COST")" >&2
 
 elif [ "$MODE" = "end" ]; then
-  if [ -f "$TEMP_FILE" ]; then
-    PREV=$(cat "$TEMP_FILE")
-    IN=$(echo "$PREV"  | jq '.input')
-    OUT=$(echo "$PREV" | jq '.output')
-    CR=$(echo "$PREV"  | jq '.cache_read')
-    CW5=$(echo "$PREV" | jq '.cache_write_5m')
-    CW1=$(echo "$PREV" | jq '.cache_write_1h')
-  else
-    TPATH=$(find_transcript)
-    USAGE=$(sum_usage_from "$TPATH" 1)
-    [ -z "$USAGE" ] && exit 0
-    IN=$(echo "$USAGE"  | jq '.input')
-    OUT=$(echo "$USAGE" | jq '.output')
-    CR=$(echo "$USAGE"  | jq '.cache_read')
-    CW5=$(echo "$USAGE" | jq '.cache_write_5m')
-    CW1=$(echo "$USAGE" | jq '.cache_write_1h')
-  fi
-
-  CW=$((CW5 + CW1))
-  COST=$(calc_cost "$IN" "$OUT" "$CR" "$CW5" "$CW1")
   PROJECT=$(basename "${CWD:-$(pwd)}")
   BRANCH=$(git -C "${CWD:-.}" branch --show-current 2>/dev/null)
 
   printf '\n━━ session end ━━━━━━━━━━━━━━━━━━━━━━━━━\n' >&2
-  printf '  %-10s %s\n'    "project"  "$PROJECT${BRANCH:+ ($BRANCH)}" >&2
-  printf '  %-10s %13s\n'  "input"    "$(fmt_num "$IN")"    >&2
-  printf '  %-10s %13s\n'  "output"   "$(fmt_num "$OUT")"   >&2
-  printf '  %-10s %13s\n'  "cache rd" "$(fmt_num "$CR")"    >&2
-  printf '  %-10s %13s\n'  "cache wr" "$(fmt_num "$CW")"    >&2
+  printf '  %-10s %s\n'   "project"  "$PROJECT${BRANCH:+ ($BRANCH)}" >&2
+  printf '  %-10s %13s\n' "input"    "$(fmt_num "$IN")"  >&2
+  printf '  %-10s %13s\n' "output"   "$(fmt_num "$OUT")" >&2
+  printf '  %-10s %13s\n' "cache rd" "$(fmt_num "$CR")"  >&2
+  printf '  %-10s %13s\n' "cache wr" "$(fmt_num "$CW")"  >&2
   printf '  ───────────────────────────────────────\n' >&2
-  printf '  %-10s %13s\n'  "est. cost" "$(fmt_usd "$COST")" >&2
+  # Per-model cost breakdown (only when more than one model was used).
+  if [ "$(echo "$STATS" | jq '.models | length')" -gt 1 ]; then
+    echo "$STATS" | jq -r '.models[] | [.model, .cost] | @tsv' | while IFS=$'\t' read -r m c; do
+      printf '  %-22s %s\n' "$m" "$(fmt_usd "$c")" >&2
+    done
+    printf '  ───────────────────────────────────────\n' >&2
+  fi
+  printf '  %-10s %13s\n' "est. cost" "$(fmt_usd "$COST")" >&2
   printf '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' >&2
-  printf '  API list rates: %s  (not seat cost)\n' "$PRICING_MODEL" >&2
+  printf '  per-model API list rates (not seat cost)\n' >&2
 
   LOG_FILE="$HOME/.claude/token-log.jsonl"
   jq -cn \
@@ -145,9 +115,10 @@ elif [ "$MODE" = "end" ]; then
     --arg proj   "$PROJECT" \
     --arg branch "${BRANCH:-}" \
     --arg ended  "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-    --arg cost   "$COST" \
-    '{input:$in, output:$out, cache_read:$cr, cache_write_5m:$cw5, cache_write_1h:$cw1, session_id:$sid, project:$proj, branch:$branch, ended_at:$ended, cost_usd:($cost|tonumber)}' \
+    --argjson cost "$COST" \
+    --argjson models "$(echo "$STATS" | jq -c '.models')" \
+    '{input:$in, output:$out, cache_read:$cr, cache_write_5m:$cw5, cache_write_1h:$cw1,
+      session_id:$sid, project:$proj, branch:$branch, ended_at:$ended,
+      cost_usd:$cost, models:$models}' \
     >> "$LOG_FILE" 2>/dev/null
-
-  rm -f "$TEMP_FILE"
 fi

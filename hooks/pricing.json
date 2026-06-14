@@ -1,10 +1,26 @@
 {
-  "model": "claude-sonnet-4-6",
-  "rates_usd_per_mtok": {
-    "input":          3.00,
-    "output":        15.00,
-    "cache_read":     0.30,
-    "cache_write_5m": 3.75,
-    "cache_write_1h": 6.00
+  "_comment": "API list rates, USD per million tokens, keyed by model family. session-end.sh matches each assistant message's .message.model by substring (opus/sonnet/haiku), so mixed-model sessions are priced per-model. Rates cached 2026-06-04 from the claude-api reference; cache_read=0.1x input, cache_write_5m=1.25x input, cache_write_1h=2x input. Unknown/synthetic models price at 0.",
+  "models": {
+    "opus": {
+      "input": 5.00,
+      "output": 25.00,
+      "cache_read": 0.50,
+      "cache_write_5m": 6.25,
+      "cache_write_1h": 10.00
+    },
+    "sonnet": {
+      "input": 3.00,
+      "output": 15.00,
+      "cache_read": 0.30,
+      "cache_write_5m": 3.75,
+      "cache_write_1h": 6.00
+    },
+    "haiku": {
+      "input": 1.00,
+      "output": 5.00,
+      "cache_read": 0.10,
+      "cache_write_5m": 1.25,
+      "cache_write_1h": 2.00
+    }
   }
 }
