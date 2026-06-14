@@ -52,17 +52,21 @@ jobs:
       - name: Compile parsers + assert artifact lands
         shell: pwsh
         run: |
-          # Honest clean-box test: drop the runner's PREINSTALLED compilers
-          # (mingw64 + LLVM) from PATH so only the scoop-installed gcc — the one
-          # the kit actually provides — is available. If compilation still works,
-          # a real Windows user with just `install.ps1 -Full` is covered.
-          $preinstalled = @('C:\mingw64\bin', 'C:\Program Files\LLVM\bin')
+          # Honest clean-box test: drop EVERY compiler the runner preinstalls
+          # (mingw64, LLVM, Strawberry Perl's gcc) from PATH so only the
+          # scoop-installed gcc — the one the kit actually provides — remains.
+          $preinstalled = @('C:\mingw64\bin', 'C:\Program Files\LLVM\bin', 'C:\Strawberry\c\bin', 'C:\Strawberry\perl\bin')
           $env:Path = (($env:Path -split ';') | Where-Object { $_ -and ($preinstalled -notcontains $_) }) -join ';'
           $env:Path = "$env:USERPROFILE\scoop\shims;$env:Path"
           foreach ($cc in 'cc','gcc','clang','cl') {
             $c = Get-Command $cc -ErrorAction SilentlyContinue
             Write-Host ("after strip, {0,-6}: {1}" -f $cc, $(if ($c) { $c.Source } else { '(absent)' }))
           }
+          # Prove the compiler in use is the KIT's (scoop), not a runner freebie.
+          $gcc = Get-Command gcc -ErrorAction SilentlyContinue
+          if (-not $gcc)                       { Write-Host "::error::no compiler after stripping — kit's scoop gcc is not on PATH"; exit 1 }
+          if ($gcc.Source -notlike "*scoop*")  { Write-Host "::error::gcc resolved to $($gcc.Source), not the scoop-installed one"; exit 1 }
+          Write-Host "using kit-provided compiler: $($gcc.Source)"
           nvim --headless -c "lua require('nvim-treesitter').install({'markdown','markdown_inline','lua'}):wait(300000)" -c "qa"
           $parserDir = Join-Path $env:LOCALAPPDATA "nvim-data\site\parser"
           Write-Host "parser dir: $parserDir"
