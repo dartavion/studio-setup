@@ -13,6 +13,42 @@ Dev environment kit for designers, engineers, and AI builders.
 
 ---
 
+## Keyboard-first layer (macOS, opt-in)
+
+Run `./install.sh --keyboard` to install a four-layer keyboard-only stack.
+It is opt-in: the default and `--full` installs do not touch it, because it
+installs four GUI apps and remaps Caps Lock.
+
+| Layer   | App                | Owns                                    |
+|---------|--------------------|-----------------------------------------|
+| Input   | Karabiner-Elements | Caps Lock → Hyper (held) / Escape (tap) |
+| Launch  | Raycast            | App launch, search, clipboard, snippets |
+| Windows | AeroSpace          | Tiling, focus, move, workspaces         |
+| Click   | Homerow            | Click/scroll any element with no shortcut |
+
+**Hyper** = `Ctrl+Alt+Cmd` (three modifiers; Shift is left free for "move"
+variants). Caps Lock emits Hyper when held, Escape when tapped.
+
+```
+Hyper+H/J/K/L          focus window left/down/up/right
+Hyper+Shift+H/J/K/L    move window
+Hyper+1..9             switch workspace
+Hyper+Shift+1..9       move window to workspace
+Hyper+F                fullscreen
+Hyper+Return           layout toggle (tiles/accordion)
+Hyper+Space            Homerow click mode
+Cmd+Space              Raycast
+```
+
+After running `--keyboard`, complete the manual steps the installer prints:
+grant Accessibility permissions to the three apps, activate Homerow with your
+license (kept out of this repo by design), enable the "studio-hyper" rule in
+Karabiner, and finish Raycast onboarding (Cmd+Space, disable its window
+commands). CI validates the config files and the installer wiring, but cannot
+test runtime keybinding behavior — that is a manual acceptance step.
+
+---
+
 ## Quick start
 
 Clone and run the full install (recommended):
