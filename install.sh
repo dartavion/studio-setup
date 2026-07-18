@@ -462,6 +462,15 @@ keyboard_layer_install() {
   install_cask "Homerow"            "homerow"
   install_cask "Raycast"            "raycast"
   install_cask "Karabiner-Elements" "karabiner-elements"
+
+  echo "  aerospace config"
+  mkdir -p "$HOME/.config/aerospace"
+  if [ -f "$HOME/.config/aerospace/aerospace.toml" ] && [ ! -L "$HOME/.config/aerospace/aerospace.toml" ]; then
+    cp "$HOME/.config/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml.bak.$(date +%Y%m%d%H%M%S)"
+    echo "    backed up existing ~/.config/aerospace/aerospace.toml"
+  fi
+  ln -sf "$REPO_DIR/dotfiles/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml"
+  echo "    ~> ~/.config/aerospace/aerospace.toml"
 }
 
 full_install_macos() {
