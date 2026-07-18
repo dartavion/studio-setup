@@ -14,6 +14,7 @@ usage() {
   echo "  $0 --plugins [vault]      Download plugin binaries into vault (default: vault/)"
   echo "  $0 --vault <path>         Seed a project vault from the base vault"
   echo "  $0 --update-lock          Update versions.lock and checksums.sha256 to latest"
+  echo "  $0 --keyboard             macOS keyboard-first layer: aerospace, homerow, raycast, karabiner (opt-in)"
   exit 1
 }
 
@@ -415,6 +416,54 @@ full_install_wsl() {
   echo "  From WezTerm, open a WSL tab: New Tab → Ubuntu (or your distro)"
 }
 
+install_cask() {
+  local app="$1" cask="$2"
+  if brew list --cask "$cask" &>/dev/null; then
+    echo "  $app ok"
+    return
+  fi
+  # If the app is already installed manually (outside brew), leave it untouched.
+  # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
+  if [ -d "/Applications/$app.app" ]; then
+    echo "  $app already present (not brew-managed) — skipping"
+    return
+  fi
+  echo "  installing $cask..."
+  brew install --cask "$cask" \
+    || echo "  warning: could not install $cask — continuing"
+}
+
+install_formula() {
+  local formula="$1"
+  if ! brew list "$formula" &>/dev/null; then
+    echo "  installing $formula..."
+    brew install "$formula"
+  else
+    echo "  $formula ok"
+  fi
+}
+
+keyboard_layer_install() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "  --keyboard is macOS only — nothing to do on this platform"
+    return 0
+  fi
+  echo "==> studio-setup keyboard-first layer (macOS)"
+
+  if ! command -v brew &>/dev/null; then
+    echo "  Homebrew required. Run: $0 --full   (or install brew first)"
+    return 1
+  fi
+
+  echo "  tapping nikitabobko/tap (AeroSpace is not in homebrew-core)..."
+  brew tap nikitabobko/tap &>/dev/null || echo "  warning: could not tap nikitabobko/tap — AeroSpace may fail"
+
+  install_cask "AeroSpace"          "nikitabobko/tap/aerospace"
+  install_cask "Homerow"            "homerow"
+  install_cask "Raycast"            "raycast"
+  install_cask "Karabiner-Elements" "karabiner-elements"
+}
+
 full_install_macos() {
   # ── Homebrew ────────────────────────────────────────────────────────────────
   if ! command -v brew &>/dev/null; then
@@ -423,33 +472,6 @@ full_install_macos() {
   else
     echo "  homebrew ok"
   fi
-
-  install_cask() {
-    local app="$1" cask="$2"
-    if brew list --cask "$cask" &>/dev/null; then
-      echo "  $app ok"
-      return
-    fi
-    # If the app is already installed manually (outside brew), leave it untouched.
-    # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
-    if [ -d "/Applications/$app.app" ]; then
-      echo "  $app already present (not brew-managed) — skipping"
-      return
-    fi
-    echo "  installing $cask..."
-    brew install --cask "$cask" \
-      || echo "  warning: could not install $cask — continuing"
-  }
-
-  install_formula() {
-    local formula="$1"
-    if ! brew list "$formula" &>/dev/null; then
-      echo "  installing $formula..."
-      brew install "$formula"
-    else
-      echo "  $formula ok"
-    fi
-  }
 
   install_cask    "WezTerm"           "wezterm"
   install_cask    "Obsidian"          "obsidian"
@@ -611,6 +633,7 @@ case "${1:-}" in
   --plugins)     install_plugins "${2:-$BASE_VAULT}" ;;
   --vault)       [[ -z "${2:-}" ]] && usage; seed_vault "$2" ;;
   --update-lock) update_lock ;;
+  --keyboard)    keyboard_layer_install ;;
   "")
     echo "==> studio-setup install"
 
