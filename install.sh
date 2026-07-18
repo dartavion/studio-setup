@@ -471,6 +471,16 @@ keyboard_layer_install() {
   fi
   ln -sf "$REPO_DIR/dotfiles/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml"
   echo "    ~> ~/.config/aerospace/aerospace.toml"
+
+  echo "  karabiner rule (copy-seed; enable it in the Karabiner GUI)"
+  karabiner_rules="$HOME/.config/karabiner/assets/complex_modifications"
+  mkdir -p "$karabiner_rules"
+  if [ -e "$karabiner_rules/studio-hyper.json" ]; then
+    echo "    studio-hyper.json already present — leaving it"
+  else
+    cp "$REPO_DIR/dotfiles/karabiner/studio-hyper.json" "$karabiner_rules/studio-hyper.json"
+    echo "    ~> $karabiner_rules/studio-hyper.json"
+  fi
 }
 
 full_install_macos() {

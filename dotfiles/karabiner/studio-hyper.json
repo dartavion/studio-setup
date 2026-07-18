@@ -1,0 +1,24 @@
+{
+  "title": "studio-hyper",
+  "rules": [
+    {
+      "description": "Caps Lock → Hyper (Ctrl+Alt+Cmd) when held, Escape when tapped",
+      "manipulators": [
+        {
+          "type": "basic",
+          "from": {
+            "key_code": "caps_lock",
+            "modifiers": { "optional": ["any"] }
+          },
+          "to": [
+            {
+              "key_code": "left_command",
+              "modifiers": ["left_control", "left_option"]
+            }
+          ],
+          "to_if_alone": [{ "key_code": "escape" }]
+        }
+      ]
+    }
+  ]
+}
