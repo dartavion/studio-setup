@@ -27,7 +27,7 @@
 - Modify: `install.sh` — `usage()` (around line 9-18), new `keyboard_layer_install()` function (add near `full_install_macos()` at line 418), dispatch `case` (line 605-786).
 
 **Interfaces:**
-- Produces: shell function `keyboard_layer_install()` (no args), invoked by `install.sh --keyboard`. Reuses the existing `install_cask "AppName" "cask"` helper defined inside `full_install_macos()` — NOTE that helper is currently a nested function, so Task 1 must define its own top-level cask helper or inline the `brew install --cask` calls. This plan inlines a small local helper inside `keyboard_layer_install()` to avoid coupling to `full_install_macos`'s scope.
+- Produces: shell function `keyboard_layer_install()` (no args), invoked by `install.sh --keyboard`. **Decision (overrides the plan's earlier duplication approach):** hoist the existing `install_cask` (and `install_formula`) helpers OUT of `full_install_macos()` to top-level scope so both `full_install_macos()` and `keyboard_layer_install()` share one copy — no duplicated helper. `full_install_macos()` keeps calling `install_cask` exactly as before; only the definition moves up.
 
 - [ ] **Step 1: Write the failing assertion**
 
@@ -54,9 +54,44 @@ In `usage()` (after the `--update-lock` line, ~line 16), add:
   echo "  $0 --keyboard             macOS keyboard-first layer: aerospace, homerow, raycast, karabiner (opt-in)"
 ```
 
-- [ ] **Step 4: Add the `keyboard_layer_install()` function**
+- [ ] **Step 4: Hoist the shared cask/formula helpers to top-level**
 
-Insert this complete function immediately above `full_install_macos() {` (line 418):
+Currently `install_cask()` and `install_formula()` are defined *inside* `full_install_macos()` (around lines 427 and 444). Move BOTH definitions to top-level scope — place them immediately above `full_install_macos() {` (line 418) — and delete them from inside `full_install_macos()`. Do not change their bodies. `full_install_macos()` continues to call them unchanged (they are now in an enclosing scope). The two definitions to move verbatim:
+
+```bash
+install_cask() {
+  local app="$1" cask="$2"
+  if brew list --cask "$cask" &>/dev/null; then
+    echo "  $app ok"
+    return
+  fi
+  # If the app is already installed manually (outside brew), leave it untouched.
+  # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
+  if [ -d "/Applications/$app.app" ]; then
+    echo "  $app already present (not brew-managed) — skipping"
+    return
+  fi
+  echo "  installing $cask..."
+  brew install --cask "$cask" \
+    || echo "  warning: could not install $cask — continuing"
+}
+
+install_formula() {
+  local formula="$1"
+  if ! brew list "$formula" &>/dev/null; then
+    echo "  installing $formula..."
+    brew install "$formula"
+  else
+    echo "  $formula ok"
+  fi
+}
+```
+
+Verify `full_install_macos()` still parses and no longer contains its own copies of these two functions.
+
+- [ ] **Step 5: Add the `keyboard_layer_install()` function**
+
+Insert this complete function immediately above `full_install_macos() {` (after the hoisted helpers from Step 4). It calls the now-shared `install_cask`:
 
 ```bash
 keyboard_layer_install() {
@@ -71,31 +106,17 @@ keyboard_layer_install() {
     return 1
   fi
 
-  # local cask helper — mirrors full_install_macos's install_cask but scoped here
-  kb_install_cask() {
-    local app="$1" cask="$2"
-    if brew list --cask "$cask" &>/dev/null; then
-      echo "  $app ok"; return
-    fi
-    if [ -d "/Applications/$app.app" ]; then
-      echo "  $app already present (not brew-managed) — skipping"; return
-    fi
-    echo "  installing $cask..."
-    brew install --cask "$cask" \
-      || echo "  warning: could not install $cask — continuing"
-  }
-
   echo "  tapping nikitabobko/tap (AeroSpace is not in homebrew-core)..."
   brew tap nikitabobko/tap &>/dev/null || echo "  warning: could not tap nikitabobko/tap — AeroSpace may fail"
 
-  kb_install_cask "AeroSpace"          "nikitabobko/tap/aerospace"
-  kb_install_cask "Homerow"            "homerow"
-  kb_install_cask "Raycast"            "raycast"
-  kb_install_cask "Karabiner-Elements" "karabiner-elements"
+  install_cask "AeroSpace"          "nikitabobko/tap/aerospace"
+  install_cask "Homerow"            "homerow"
+  install_cask "Raycast"            "raycast"
+  install_cask "Karabiner-Elements" "karabiner-elements"
 }
 ```
 
-- [ ] **Step 5: Wire the dispatch**
+- [ ] **Step 6: Wire the dispatch**
 
 In the `case "${1:-}" in` block (line 605), add a branch after `--update-lock)`:
 
@@ -103,17 +124,17 @@ In the `case "${1:-}" in` block (line 605), add a branch after `--update-lock)`:
   --keyboard)    keyboard_layer_install ;;
 ```
 
-- [ ] **Step 6: Run the assertion to verify it passes**
+- [ ] **Step 7: Run the assertion to verify it passes**
 
 Run the Step 1 block.
 Expected: `PASS`.
 
-- [ ] **Step 7: Run shellcheck (matches CI severity gate)**
+- [ ] **Step 8: Run shellcheck (matches CI severity gate)**
 
 Run: `shellcheck --severity=error install.sh`
 Expected: no output, exit 0.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
 git add install.sh
