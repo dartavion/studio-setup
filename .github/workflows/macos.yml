@@ -42,6 +42,25 @@ jobs:
           grep -qE 'install_formula +"jq"' install.sh || { echo "::error::jq not in the macOS formula list but the hooks need it"; exit 1; }
           echo "jq declared in install.sh"
 
+      - name: --keyboard flag is wired (usage + dispatch)
+        run: |
+          grep -qE '^\s*--keyboard\)' install.sh || { echo "::error::--keyboard not in dispatch"; exit 1; }
+          grep -q 'keyboard_layer_install' install.sh || { echo "::error::keyboard_layer_install missing"; exit 1; }
+          grep -qE 'echo .*--keyboard' install.sh || { echo "::error::--keyboard not documented in usage()"; exit 1; }
+          echo "--keyboard wired"
+
+      - name: AeroSpace config is valid TOML with expected bindings
+        run: |
+          python3 -c "import tomllib; b=tomllib.load(open('dotfiles/aerospace/aerospace.toml','rb'))['mode']['main']['binding']; assert b['ctrl-alt-cmd-h']=='focus left'; assert b['ctrl-alt-cmd-1']=='workspace 1'; assert b['ctrl-alt-cmd-shift-1']=='move-node-to-workspace 1'; print('aerospace.toml ok')" \
+            || { echo "::error::aerospace.toml invalid or missing expected bindings"; exit 1; }
+
+      - name: Karabiner rule is valid JSON with the Hyper mapping
+        run: |
+          jq -e '.rules[0].manipulators[0] | (.from.key_code=="caps_lock") and (.to[0].key_code=="left_command") and (.to[0].modifiers==["left_control","left_option"]) and (.to_if_alone[0].key_code=="escape")' \
+            dotfiles/karabiner/studio-hyper.json >/dev/null \
+            || { echo "::error::studio-hyper.json invalid or missing Hyper mapping"; exit 1; }
+          echo "studio-hyper.json ok"
+
       - name: Install nvim toolchain (neovim, tree-sitter CLI, jq)
         run: brew install neovim tree-sitter-cli jq
 
