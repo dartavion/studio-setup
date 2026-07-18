@@ -473,7 +473,7 @@ keyboard_layer_install() {
   echo "    ~> ~/.config/aerospace/aerospace.toml"
 
   echo "  karabiner rule (copy-seed; enable it in the Karabiner GUI)"
-  karabiner_rules="$HOME/.config/karabiner/assets/complex_modifications"
+  local karabiner_rules="$HOME/.config/karabiner/assets/complex_modifications"
   mkdir -p "$karabiner_rules"
   if [ -e "$karabiner_rules/studio-hyper.json" ]; then
     echo "    studio-hyper.json already present — leaving it"

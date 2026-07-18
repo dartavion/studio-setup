@@ -33,6 +33,10 @@ jobs:
             if brew info --formula "$f" >/dev/null 2>&1; then echo "ok formula: $f"; else echo "::error::brew formula not found: $f"; fail=1; fi
           done
           for c in $(sed -nE 's/.*install_cask +"[^"]+" +"([^"]+)".*/\1/p' install.sh); do
+            # tap-qualified casks (user/tap/name) need their tap before `brew info` resolves them
+            case "$c" in
+              */*/*) brew tap "${c%/*}" >/dev/null 2>&1 || true ;;
+            esac
             if brew info --cask "$c" >/dev/null 2>&1; then echo "ok cask: $c"; else echo "::error::brew cask not found: $c"; fail=1; fi
           done
           exit $fail
