@@ -481,6 +481,25 @@ keyboard_layer_install() {
     cp "$REPO_DIR/dotfiles/karabiner/studio-hyper.json" "$karabiner_rules/studio-hyper.json"
     echo "    ~> $karabiner_rules/studio-hyper.json"
   fi
+
+  cat <<'CHECKLIST'
+
+  ==> Manual steps (these cannot be scripted safely):
+    1. Grant Accessibility permissions to AeroSpace, Homerow, and
+       Karabiner-Elements:
+         System Settings -> Privacy & Security -> Accessibility
+       (All three need it; without it, shortcuts silently do nothing.)
+    2. Activate Homerow with your license key — your key is
+       kept out of this repo by design. Enter it directly in the Homerow app.
+    3. Karabiner-Elements -> Complex Modifications -> Add rule ->
+       enable "studio-hyper" (Caps Lock becomes Hyper on hold, Escape on tap).
+    4. Open Raycast and complete onboarding: set its hotkey to Cmd+Space
+       (Raycast offers to disable Spotlight's Cmd+Space for you), and
+       disable Raycast's own window-management commands so they don't
+       collide with AeroSpace.
+
+  Keymap reference: see README (search "keyboard-first").
+CHECKLIST
 }
 
 full_install_macos() {
