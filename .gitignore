@@ -1,5 +1,6 @@
 .DS_Store
 *.local
+secrets.env
 
 # Root-level .obsidian is created when Obsidian opens this folder directly — not the vault
 /.obsidian/

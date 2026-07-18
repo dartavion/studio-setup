@@ -14,6 +14,7 @@ usage() {
   echo "  $0 --plugins [vault]      Download plugin binaries into vault (default: vault/)"
   echo "  $0 --vault <path>         Seed a project vault from the base vault"
   echo "  $0 --update-lock          Update versions.lock and checksums.sha256 to latest"
+  echo "  $0 --keyboard             macOS keyboard-first layer: aerospace, homerow, raycast, karabiner (opt-in)"
   exit 1
 }
 
@@ -415,6 +416,92 @@ full_install_wsl() {
   echo "  From WezTerm, open a WSL tab: New Tab → Ubuntu (or your distro)"
 }
 
+install_cask() {
+  local app="$1" cask="$2"
+  if brew list --cask "$cask" &>/dev/null; then
+    echo "  $app ok"
+    return
+  fi
+  # If the app is already installed manually (outside brew), leave it untouched.
+  # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
+  if [ -d "/Applications/$app.app" ]; then
+    echo "  $app already present (not brew-managed) — skipping"
+    return
+  fi
+  echo "  installing $cask..."
+  brew install --cask "$cask" \
+    || echo "  warning: could not install $cask — continuing"
+}
+
+install_formula() {
+  local formula="$1"
+  if ! brew list "$formula" &>/dev/null; then
+    echo "  installing $formula..."
+    brew install "$formula"
+  else
+    echo "  $formula ok"
+  fi
+}
+
+keyboard_layer_install() {
+  if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "  --keyboard is macOS only — nothing to do on this platform"
+    return 0
+  fi
+  echo "==> studio-setup keyboard-first layer (macOS)"
+
+  if ! command -v brew &>/dev/null; then
+    echo "  Homebrew required. Run: $0 --full   (or install brew first)"
+    return 1
+  fi
+
+  echo "  tapping nikitabobko/tap (AeroSpace is not in homebrew-core)..."
+  brew tap nikitabobko/tap &>/dev/null || echo "  warning: could not tap nikitabobko/tap — AeroSpace may fail"
+
+  install_cask "AeroSpace"          "nikitabobko/tap/aerospace"
+  install_cask "Homerow"            "homerow"
+  install_cask "Raycast"            "raycast"
+  install_cask "Karabiner-Elements" "karabiner-elements"
+
+  echo "  aerospace config"
+  mkdir -p "$HOME/.config/aerospace"
+  if [ -f "$HOME/.config/aerospace/aerospace.toml" ] && [ ! -L "$HOME/.config/aerospace/aerospace.toml" ]; then
+    cp "$HOME/.config/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml.bak.$(date +%Y%m%d%H%M%S)"
+    echo "    backed up existing ~/.config/aerospace/aerospace.toml"
+  fi
+  ln -sf "$REPO_DIR/dotfiles/aerospace/aerospace.toml" "$HOME/.config/aerospace/aerospace.toml"
+  echo "    ~> ~/.config/aerospace/aerospace.toml"
+
+  echo "  karabiner rule (copy-seed; enable it in the Karabiner GUI)"
+  local karabiner_rules="$HOME/.config/karabiner/assets/complex_modifications"
+  mkdir -p "$karabiner_rules"
+  if [ -e "$karabiner_rules/studio-hyper.json" ]; then
+    echo "    studio-hyper.json already present — leaving it"
+  else
+    cp "$REPO_DIR/dotfiles/karabiner/studio-hyper.json" "$karabiner_rules/studio-hyper.json"
+    echo "    ~> $karabiner_rules/studio-hyper.json"
+  fi
+
+  cat <<'CHECKLIST'
+
+  ==> Manual steps (these cannot be scripted safely):
+    1. Grant Accessibility permissions to AeroSpace, Homerow, and
+       Karabiner-Elements:
+         System Settings -> Privacy & Security -> Accessibility
+       (All three need it; without it, shortcuts silently do nothing.)
+    2. Activate Homerow with your license key — your key is
+       kept out of this repo by design. Enter it directly in the Homerow app.
+    3. Karabiner-Elements -> Complex Modifications -> Add rule ->
+       enable "studio-hyper" (Caps Lock becomes Hyper on hold, Escape on tap).
+    4. Open Raycast and complete onboarding: set its hotkey to Cmd+Space
+       (Raycast offers to disable Spotlight's Cmd+Space for you), and
+       disable Raycast's own window-management commands so they don't
+       collide with AeroSpace.
+
+  Keymap reference: see README (search "keyboard-first").
+CHECKLIST
+}
+
 full_install_macos() {
   # ── Homebrew ────────────────────────────────────────────────────────────────
   if ! command -v brew &>/dev/null; then
@@ -423,33 +510,6 @@ full_install_macos() {
   else
     echo "  homebrew ok"
   fi
-
-  install_cask() {
-    local app="$1" cask="$2"
-    if brew list --cask "$cask" &>/dev/null; then
-      echo "  $app ok"
-      return
-    fi
-    # If the app is already installed manually (outside brew), leave it untouched.
-    # Do NOT use --adopt: a failed adopt rolls back by DELETING the user's app.
-    if [ -d "/Applications/$app.app" ]; then
-      echo "  $app already present (not brew-managed) — skipping"
-      return
-    fi
-    echo "  installing $cask..."
-    brew install --cask "$cask" \
-      || echo "  warning: could not install $cask — continuing"
-  }
-
-  install_formula() {
-    local formula="$1"
-    if ! brew list "$formula" &>/dev/null; then
-      echo "  installing $formula..."
-      brew install "$formula"
-    else
-      echo "  $formula ok"
-    fi
-  }
 
   install_cask    "WezTerm"           "wezterm"
   install_cask    "Obsidian"          "obsidian"
@@ -611,6 +671,7 @@ case "${1:-}" in
   --plugins)     install_plugins "${2:-$BASE_VAULT}" ;;
   --vault)       [[ -z "${2:-}" ]] && usage; seed_vault "$2" ;;
   --update-lock) update_lock ;;
+  --keyboard)    keyboard_layer_install ;;
   "")
     echo "==> studio-setup install"
 
