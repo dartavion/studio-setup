@@ -1,6 +1,8 @@
 # studio-setup
 
-Dev environment kit for designers, engineers, and AI builders.
+An opinionated dev environment built on one idea: **Claude is most useful as a knowledgeable pair that pushes back — not a yes-man that agrees.**
+
+It's a personal studio setup — WezTerm, Obsidian, Neovim, shell — wired around a Claude Code harness that defaults the model to *calibrated* pushback over agreement. The environment is the bulk; the harness is the distinctive part, and the reason this exists.
 
 ## What's inside
 
@@ -267,7 +269,9 @@ The section installed here addresses that directly:
 
 The same content lives in `vault/CLAUDE.md` for vault-scoped sessions and in `dotfiles/claude-global.md` as the single source of truth. Edit that file to update both.
 
-This posture works best with capable models. On weaker models it slows drift without stopping it — the form of the behavior appears without the substance. On models with enough headroom, it consistently produces more honest, more useful engagement.
+What the posture reaches for is *calibrated* pushback, not pushback for its own sake. Reflexive disagreement is the same failure wearing the opposite mask: if the model contradicts by default, you can't trust the signal any more than if it agrees by default. The goal is a knowledgeable pair with the judgment to tell a borderline-worth-flagging call from a fine one — pushback is the evidence of that judgment, not the objective.
+
+This leans on the model having the headroom to exercise that judgment. On weaker models you get the form without the substance: contrarian noise instead of discernment. I haven't measured the effect and don't claim a general improvement in "honesty" — I claim it addresses a problem I actually had, and that on capable models it consistently changes the working relationship in a way I find more useful.
 
 ---
 
