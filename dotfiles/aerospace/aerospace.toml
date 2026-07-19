@@ -2,6 +2,12 @@
 # Hyper = Ctrl+Alt+Cmd (emitted by the Karabiner "studio-hyper" rule on Caps-hold).
 # Edit freely; this is a starting keymap, not gospel.
 
+# config-version 2 is the current/recommended version. The only v1->v2 change is
+# that persistent-workspaces are no longer auto-inferred from bindings; we rely on
+# on-demand workspaces, so no persistent-workspaces block is needed. Binding syntax
+# is unchanged between versions.
+config-version = 2
+
 start-at-login = true
 default-root-container-layout = 'tiles'
 default-root-container-orientation = 'auto'
