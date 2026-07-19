@@ -4,3 +4,6 @@ secrets.env
 
 # Root-level .obsidian is created when Obsidian opens this folder directly — not the vault
 /.obsidian/
+
+# Local working note, not for the repo
+/docs/2026-06-28-purpose-and-structure-review.md
